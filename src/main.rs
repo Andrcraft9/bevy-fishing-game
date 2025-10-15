@@ -88,13 +88,15 @@ impl Layer {
 
 /// Game
 
+const K_WIDTH: f32 = 1280.0;
+const K_HEIGHT: f32 = 720.0;
 const K_GROUND_LEVEL: f32 = -350.0;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: (1280.0, 720.0).into(),
+                resolution: (K_WIDTH, K_HEIGHT).into(),
                 title: "Bevy Game Project".to_string(),
                 ..Default::default()
             }),
@@ -102,6 +104,7 @@ fn main() {
         }))
         .add_systems(Startup, setup)
         .add_systems(Update, player_control)
+        .add_systems(Update, sun_update)
         .run();
 }
 
@@ -166,25 +169,28 @@ fn setup(
 fn player_control(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<&mut Transform, With<Player>>,
+    mut player_query: Single<&mut Transform, With<Player>>,
 ) {
-    if let Ok(mut transform) = player_query.single_mut() {
-        let mut direction = Vec3::ZERO;
+    let mut direction = Vec3::ZERO;
 
-        if keyboard_input.pressed(KeyCode::KeyA) {
-            direction.x -= 1.0;
-            println!("Moving left!");
-        }
-        if keyboard_input.pressed(KeyCode::KeyD) {
-            direction.x += 1.0;
-            println!("Moving right!");
-        }
-
-        let speed = 150.0;
-        transform.translation += direction * speed * time.delta_secs();
-
-        if direction != Vec3::ZERO {
-            println!("Player position: {:?}", transform.translation);
-        }
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
+        println!("Moving left!");
     }
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
+        println!("Moving right!");
+    }
+
+    let speed = 150.0;
+    player_query.translation += direction * speed * time.delta_secs();
+
+    if direction != Vec3::ZERO {
+        println!("Player position: {:?}", player_query.translation);
+    }
+}
+
+fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
+    sun_query.translation.x = (0.5 * time.elapsed_secs()).sin() * K_WIDTH / 2.0;
+    println!("Sun position: {:?}", sun_query.translation);
 }
