@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, window::WindowResolution};
 
 /// Layer Description / Types
 
@@ -12,6 +12,8 @@ enum PrimitiveType {
 enum ObjectType {
     Primitive(PrimitiveType),
 }
+
+/// Component Types
 
 #[derive(Component, Debug, Clone, PartialEq)]
 struct Player;
@@ -29,19 +31,27 @@ enum ObjectComponentType {
     Sun(Sun),
 }
 
+/// Events
+#[derive(Event)]
+struct Action {
+    position: Vec2,
+}
+
+/// Layer
+
 #[derive(Debug, Clone, PartialEq)]
 struct LayerObject {
-    pub t: ObjectType,
-    pub component: ObjectComponentType,
-    pub position: Vec2,
-    pub size: Vec2,
-    pub color: Color,
-    pub name: String,
+    t: ObjectType,
+    component: ObjectComponentType,
+    position: Vec2,
+    size: Vec2,
+    color: Color,
+    name: String,
 }
 
 struct Layer {
-    pub objects: Vec<LayerObject>,
-    pub depth: f32,
+    objects: Vec<LayerObject>,
+    depth: f32,
 }
 
 impl Layer {
@@ -88,23 +98,35 @@ impl Layer {
 
 /// Game
 
+/// Coordinate space:
+/// (-w/2, h/2)       (w/2, h/2)
+///      +----------------+
+///      |     (0,0)      |
+///      |       |        |
+///      +----------------+
+/// (-w/2, -h/2)       (w/2, -h/2)
 const K_WIDTH: f32 = 1280.0;
 const K_HEIGHT: f32 = 720.0;
 const K_GROUND_LEVEL: f32 = -350.0;
+
+const K_ACTION_RADIUS: f32 = 25.0;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                resolution: (K_WIDTH, K_HEIGHT).into(),
+                resolution: WindowResolution::new(K_WIDTH as u32, K_HEIGHT as u32),
                 title: "Bevy Game Project".to_string(),
                 ..Default::default()
             }),
             ..Default::default()
         }))
+        .add_observer(on_action)
         .add_systems(Startup, setup)
         .add_systems(Update, player_control)
+        .add_systems(Update, player_action)
         .add_systems(Update, sun_update)
+        .add_observer(on_action)
         .run();
 }
 
@@ -166,10 +188,23 @@ fn setup(
     layer_player.build(&mut commands, &mut meshes, &mut materials);
 }
 
+fn player_action(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    player_query: Single<&Transform, With<Player>>,
+    mut commands: Commands,
+) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        println!("Action!");
+        commands.trigger(Action {
+            position: Vec2::new(player_query.translation.x, player_query.translation.y),
+        });
+    }
+}
+
 fn player_control(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Single<&mut Transform, With<Player>>,
+    mut player_query: Single<&mut Transform, With<Player>>
 ) {
     let mut direction = Vec3::ZERO;
 
@@ -192,5 +227,17 @@ fn player_control(
 
 fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
     sun_query.translation.x = (0.5 * time.elapsed_secs()).sin() * K_WIDTH / 2.0;
-    println!("Sun position: {:?}", sun_query.translation);
+}
+
+fn on_action(action: On<Action>, query: Query<(&Transform, &Name), With<Building>>) {
+    let action_position = action.event().position;
+    println!("On Action!");
+    for (transform, name) in query.iter() {
+        if (action_position.x - transform.translation.x).abs() <= K_ACTION_RADIUS {
+            println!(
+                "Found building '{}' at distance {:.2} from action",
+                name, transform.translation.x
+            );
+        }
+    }
 }
