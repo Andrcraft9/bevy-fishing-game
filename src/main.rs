@@ -1,115 +1,16 @@
 use bevy::{prelude::*, window::WindowResolution};
 
-/// Layer Description / Types
+mod components;
+mod constants;
+mod events;
+mod layer;
+mod systems;
+mod types;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum PrimitiveType {
-    Rectangle,
-    Circle,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum ObjectType {
-    Primitive(PrimitiveType),
-}
-
-/// Component Types
-
-#[derive(Component, Debug, Clone, PartialEq)]
-struct Player;
-
-#[derive(Component, Debug, Clone, PartialEq)]
-struct Building;
-
-#[derive(Component, Debug, Clone, PartialEq)]
-struct Sun;
-
-#[derive(Debug, Clone, PartialEq)]
-enum ObjectComponentType {
-    Player(Player),
-    Building(Building),
-    Sun(Sun),
-}
-
-/// Events
-#[derive(Event)]
-struct Action {
-    position: Vec2,
-}
-
-/// Layer
-
-#[derive(Debug, Clone, PartialEq)]
-struct LayerObject {
-    t: ObjectType,
-    component: ObjectComponentType,
-    position: Vec2,
-    size: Vec2,
-    color: Color,
-    name: String,
-}
-
-struct Layer {
-    objects: Vec<LayerObject>,
-    depth: f32,
-}
-
-impl Layer {
-    pub fn build(
-        &self,
-        commands: &mut Commands,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        materials: &mut ResMut<Assets<ColorMaterial>>,
-    ) {
-        for obj in &self.objects {
-            // Create the appropriate mesh based on primitive type
-            let mesh = match obj.t {
-                ObjectType::Primitive(PrimitiveType::Rectangle) => {
-                    meshes.add(Rectangle::new(obj.size.x, obj.size.y))
-                }
-                ObjectType::Primitive(PrimitiveType::Circle) => {
-                    meshes.add(Circle::new(f32::max(obj.size.x, obj.size.y) / 2.0))
-                }
-            };
-
-            // Spawn entity with common components
-            let mut entity = commands.spawn((
-                Mesh2d(mesh),
-                MeshMaterial2d(materials.add(obj.color.clone())),
-                Transform::from_xyz(obj.position.x, obj.position.y, self.depth),
-                Name::new(obj.name.clone()),
-            ));
-
-            // Add the specific component type
-            match &obj.component {
-                ObjectComponentType::Player(_) => {
-                    entity.insert(Player);
-                }
-                ObjectComponentType::Building(_) => {
-                    entity.insert(Building);
-                }
-                ObjectComponentType::Sun(_) => {
-                    entity.insert(Sun);
-                }
-            }
-        }
-    }
-}
-
-/// Game
-
-/// Coordinate space:
-/// (-w/2, h/2)       (w/2, h/2)
-///      +----------------+
-///      |     (0,0)      |
-///      |       |        |
-///      +----------------+
-/// (-w/2, -h/2)       (w/2, -h/2)
-const K_WIDTH: f32 = 1280.0;
-const K_HEIGHT: f32 = 720.0;
-const K_GROUND_LEVEL: f32 = -350.0;
-
-const K_ACTION_RADIUS: f32 = 25.0;
+use components::*;
+use constants::*;
+use layer::*;
+use types::*;
 
 fn main() {
     App::new()
@@ -121,12 +22,11 @@ fn main() {
             }),
             ..Default::default()
         }))
-        .add_observer(on_action)
+        .add_observer(systems::action::on_action)
         .add_systems(Startup, setup)
-        .add_systems(Update, player_control)
-        .add_systems(Update, player_action)
-        .add_systems(Update, sun_update)
-        .add_observer(on_action)
+        .add_systems(Update, systems::player::player_control)
+        .add_systems(Update, systems::player::player_action)
+        .add_systems(Update, systems::sun::sun_update)
         .run();
 }
 
@@ -186,58 +86,4 @@ fn setup(
     layer_city.build(&mut commands, &mut meshes, &mut materials);
     layer_sun.build(&mut commands, &mut meshes, &mut materials);
     layer_player.build(&mut commands, &mut meshes, &mut materials);
-}
-
-fn player_action(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_query: Single<&Transform, With<Player>>,
-    mut commands: Commands,
-) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        println!("Action!");
-        commands.trigger(Action {
-            position: Vec2::new(player_query.translation.x, player_query.translation.y),
-        });
-    }
-}
-
-fn player_control(
-    time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Single<&mut Transform, With<Player>>
-) {
-    let mut direction = Vec3::ZERO;
-
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        direction.x -= 1.0;
-        println!("Moving left!");
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        direction.x += 1.0;
-        println!("Moving right!");
-    }
-
-    let speed = 150.0;
-    player_query.translation += direction * speed * time.delta_secs();
-
-    if direction != Vec3::ZERO {
-        println!("Player position: {:?}", player_query.translation);
-    }
-}
-
-fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
-    sun_query.translation.x = (0.5 * time.elapsed_secs()).sin() * K_WIDTH / 2.0;
-}
-
-fn on_action(action: On<Action>, query: Query<(&Transform, &Name), With<Building>>) {
-    let action_position = action.event().position;
-    println!("On Action!");
-    for (transform, name) in query.iter() {
-        if (action_position.x - transform.translation.x).abs() <= K_ACTION_RADIUS {
-            println!(
-                "Found building '{}' at distance {:.2} from action",
-                name, transform.translation.x
-            );
-        }
-    }
 }
