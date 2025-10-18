@@ -37,7 +37,7 @@ fn setup(
 ) {
     commands.spawn(Camera2d);
 
-    let layer_city = Layer {
+    let layer_city = LayerDesc {
         objects: vec![
             LayerObject {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
@@ -57,9 +57,11 @@ fn setup(
             },
         ],
         depth: 0.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "City".to_string(),
     };
 
-    let layer_sun = Layer {
+    let layer_sun = LayerDesc {
         objects: vec![LayerObject {
             t: ObjectType::Primitive(PrimitiveType::Circle),
             component: ObjectComponentType::Sun(Sun),
@@ -69,9 +71,11 @@ fn setup(
             name: "Sun".to_string(),
         }],
         depth: -1.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Sky".to_string(),
     };
 
-    let layer_player = Layer {
+    let layer_play = LayerDesc {
         objects: vec![LayerObject {
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
             component: ObjectComponentType::Player(Player),
@@ -81,9 +85,11 @@ fn setup(
             name: "Player".to_string(),
         }],
         depth: 1.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Play".to_string(),
     };
 
     layer_city.build(&mut commands, &mut meshes, &mut materials);
     layer_sun.build(&mut commands, &mut meshes, &mut materials);
-    layer_player.build(&mut commands, &mut meshes, &mut materials);
+    layer_play.build(&mut commands, &mut meshes, &mut materials);
 }

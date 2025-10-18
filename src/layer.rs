@@ -1,10 +1,17 @@
 use crate::{
-    components::ObjectComponentType,
+    components::{self, Building, Player, Sun},
     types::{ObjectType, PrimitiveType},
 };
 use bevy::prelude::*;
 
 /// Layer System
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ObjectComponentType {
+    Player(Player),
+    Building(Building),
+    Sun(Sun),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LayerObject {
@@ -16,20 +23,29 @@ pub struct LayerObject {
     pub name: String,
 }
 
-pub struct Layer {
+pub struct LayerDesc {
     pub objects: Vec<LayerObject>,
     pub depth: f32,
+    pub size: Vec2,
+    pub name: String,
 }
 
-impl Layer {
+impl LayerDesc {
     pub fn build(
         &self,
         commands: &mut Commands,
         meshes: &mut ResMut<Assets<Mesh>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
     ) {
+        let layer_entity = commands
+            .spawn((
+                Transform::from_xyz(0.0, 0.0, self.depth),
+                Name::new(self.name.clone()),
+                components::Layer { size: self.size },
+            ))
+            .id();
+
         for obj in &self.objects {
-            // Create the appropriate mesh based on primitive type
             let mesh = match obj.t {
                 ObjectType::Primitive(PrimitiveType::Rectangle) => {
                     meshes.add(Rectangle::new(obj.size.x, obj.size.y))
@@ -40,25 +56,31 @@ impl Layer {
             };
 
             // Spawn entity with common components
-            let mut entity = commands.spawn((
-                Mesh2d(mesh),
-                MeshMaterial2d(materials.add(obj.color.clone())),
-                Transform::from_xyz(obj.position.x, obj.position.y, self.depth),
-                Name::new(obj.name.clone()),
-            ));
+            let entity_id = commands
+                .spawn((
+                    Mesh2d(mesh),
+                    MeshMaterial2d(materials.add(obj.color.clone())),
+                    Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                    Name::new(obj.name.clone()),
+                ))
+                .id();
 
             // Add the specific component type
             match &obj.component {
                 ObjectComponentType::Player(_) => {
-                    entity.insert(crate::components::Player);
+                    commands.entity(entity_id).insert(crate::components::Player);
                 }
                 ObjectComponentType::Building(_) => {
-                    entity.insert(crate::components::Building);
+                    commands
+                        .entity(entity_id)
+                        .insert(crate::components::Building);
                 }
                 ObjectComponentType::Sun(_) => {
-                    entity.insert(crate::components::Sun);
+                    commands.entity(entity_id).insert(crate::components::Sun);
                 }
             }
+
+            commands.entity(layer_entity).add_child(entity_id);
         }
     }
 }

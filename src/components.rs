@@ -11,9 +11,7 @@ pub struct Building;
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Sun;
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum ObjectComponentType {
-    Player(Player),
-    Building(Building),
-    Sun(Sun),
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct Layer {
+    pub size: Vec2,
 }
