@@ -1,5 +1,5 @@
 use crate::{
-    components::{self, Building, Player, Sun},
+    components::{self, Building, Ocean, Player, Sun},
     types::{ObjectType, PrimitiveType},
 };
 use bevy::prelude::*;
@@ -9,6 +9,7 @@ use bevy::prelude::*;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectComponentType {
     Player(Player),
+    Ocean(Ocean),
     Building(Building),
     Sun(Sun),
 }
@@ -41,7 +42,10 @@ impl LayerDesc {
             .spawn((
                 Transform::from_xyz(0.0, 0.0, self.depth),
                 Name::new(self.name.clone()),
-                components::Layer { size: self.size },
+                components::Layer {
+                    depth: self.depth,
+                    size: self.size,
+                },
             ))
             .id();
 
@@ -69,6 +73,9 @@ impl LayerDesc {
             match &obj.component {
                 ObjectComponentType::Player(_) => {
                     commands.entity(entity_id).insert(crate::components::Player);
+                }
+                ObjectComponentType::Ocean(_) => {
+                    commands.entity(entity_id).insert(crate::components::Ocean);
                 }
                 ObjectComponentType::Building(_) => {
                     commands

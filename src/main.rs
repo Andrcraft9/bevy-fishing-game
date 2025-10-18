@@ -24,7 +24,7 @@ fn main() {
         }))
         .add_observer(systems::on_action)
         .add_systems(Startup, setup)
-        .add_systems(Update, systems::player_control)
+        .add_systems(Update, systems::layer_update)
         .add_systems(Update, systems::player_action)
         .add_systems(Update, systems::sun_update)
         .run();
@@ -42,18 +42,34 @@ fn setup(
             LayerObject {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Building(Building),
-                position: Vec2::new(0.0, K_GROUND_LEVEL + 256.0),
-                size: Vec2::new(128.0, 512.0),
+                position: Vec2::new(-640.0, K_GROUND_LEVEL + 256.0),
+                size: Vec2::new(256.0, 512.0),
                 color: Color::srgb(1.0, 0.0, 0.0),
                 name: "Red Building".to_string(),
             },
             LayerObject {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Building(Building),
-                position: Vec2::new(256.0, K_GROUND_LEVEL + 128.0),
-                size: Vec2::new(64.0, 256.0),
+                position: Vec2::new(-256.0, K_GROUND_LEVEL + 128.0),
+                size: Vec2::new(128.0, 256.0),
                 color: Color::srgb(0.0, 1.0, 0.0),
                 name: "Green Building".to_string(),
+            },
+            LayerObject {
+                t: ObjectType::Primitive(PrimitiveType::Rectangle),
+                component: ObjectComponentType::Building(Building),
+                position: Vec2::new(140.0, K_GROUND_LEVEL + 64.0),
+                size: Vec2::new(128.0, 128.0),
+                color: Color::srgb(0.2, 0.0, 0.2),
+                name: "Deck Building".to_string(),
+            },
+            LayerObject {
+                t: ObjectType::Primitive(PrimitiveType::Rectangle),
+                component: ObjectComponentType::Ocean(Ocean),
+                position: Vec2::new(720.0, K_GROUND_LEVEL - 32.0),
+                size: Vec2::new(1024.0, 64.0),
+                color: Color::srgb(0.0, 0.0, 1.0),
+                name: "Ocean".to_string(),
             },
         ],
         depth: 0.0,
@@ -65,7 +81,7 @@ fn setup(
         objects: vec![LayerObject {
             t: ObjectType::Primitive(PrimitiveType::Circle),
             component: ObjectComponentType::Sun(Sun),
-            position: Vec2::new(-512.0, K_GROUND_LEVEL + 512.0),
+            position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
             size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 0.0),
             name: "Sun".to_string(),
@@ -79,8 +95,8 @@ fn setup(
         objects: vec![LayerObject {
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
             component: ObjectComponentType::Player(Player),
-            position: Vec2::new(0.0, K_GROUND_LEVEL + 16.0),
-            size: Vec2::new(4.0, 32.0),
+            position: Vec2::new(0.0, K_GROUND_LEVEL + 32.0),
+            size: Vec2::new(8.0, 64.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Player".to_string(),
         }],

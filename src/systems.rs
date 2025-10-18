@@ -1,16 +1,17 @@
 use crate::{
-    components::Building, components::Player, components::Sun, constants::K_ACTION_RADIUS,
-    constants::K_WIDTH, events::Action,
+    components::{Building, Layer, Player, Sun},
+    constants::{K_ACTION_RADIUS, K_HEIGHT, K_SPEED, K_WIDTH},
+    events::Action,
 };
 use bevy::prelude::*;
 
-pub fn on_action(action: On<Action>, query: Query<(&Transform, &Name), With<Building>>) {
+pub fn on_action(action: On<Action>, query: Query<(&GlobalTransform, &Name), With<Building>>) {
     let action_position = action.event().position;
-    println!("On Action!");
+    info!("On Action!");
     for (transform, name) in query.iter() {
-        let distance = (action_position.x - transform.translation.x).abs();
+        let distance = (action_position.x - transform.translation().x).abs();
         if distance <= K_ACTION_RADIUS {
-            println!(
+            info!(
                 "Found building '{}' at distance {:.2} from action",
                 name, distance
             );
@@ -24,7 +25,7 @@ pub fn player_action(
     mut commands: Commands,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
-        println!("Action!");
+        info!("Action!");
         commands.trigger(Action {
             position: Vec2::new(player_query.translation.x, player_query.translation.y),
         });
@@ -40,21 +41,43 @@ pub fn player_control(
 
     if keyboard_input.pressed(KeyCode::KeyA) {
         direction.x -= 1.0;
-        println!("Moving left!");
+        debug!("Moving left!");
     }
     if keyboard_input.pressed(KeyCode::KeyD) {
         direction.x += 1.0;
-        println!("Moving right!");
+        debug!("Moving right!");
     }
 
-    let speed = 150.0;
-    player_query.translation += direction * speed * time.delta_secs();
+    player_query.translation += direction * K_SPEED * time.delta_secs();
 
     if direction != Vec3::ZERO {
-        println!("Player position: {:?}", player_query.translation);
+        debug!("Player position: {:?}", player_query.translation);
+    }
+}
+
+pub fn layer_update(
+    time: Res<Time>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut player_query: Query<(&mut Transform, &Layer)>,
+) {
+    let mut direction = 0.0;
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        direction += 1.0;
+    }
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        direction -= 1.0;
+    }
+
+    for (mut transform, layer) in player_query.iter_mut() {
+        if layer.depth <= 0.0 {
+            transform.translation.x += direction * K_SPEED * time.delta_secs();
+            if direction != 0.0 {
+                debug!("Layer transform: {:?}", transform.translation);
+            }
+        }
     }
 }
 
 pub fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
-    sun_query.translation.x = (0.5 * time.elapsed_secs()).sin() * K_WIDTH / 2.0;
+    sun_query.translation.y = (0.5 * time.elapsed_secs()).sin() * K_HEIGHT / 2.0;
 }
