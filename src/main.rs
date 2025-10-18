@@ -22,11 +22,11 @@ fn main() {
             }),
             ..Default::default()
         }))
-        .add_observer(systems::action::on_action)
+        .add_observer(systems::on_action)
         .add_systems(Startup, setup)
-        .add_systems(Update, systems::player::player_control)
-        .add_systems(Update, systems::player::player_action)
-        .add_systems(Update, systems::sun::sun_update)
+        .add_systems(Update, systems::player_control)
+        .add_systems(Update, systems::player_action)
+        .add_systems(Update, systems::sun_update)
         .run();
 }
 

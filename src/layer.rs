@@ -1,5 +1,8 @@
+use crate::{
+    components::ObjectComponentType,
+    types::{ObjectType, PrimitiveType},
+};
 use bevy::prelude::*;
-use crate::{types::{ObjectType, PrimitiveType}, components::ObjectComponentType};
 
 /// Layer System
 

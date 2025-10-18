@@ -1,5 +1,22 @@
+use crate::{
+    components::Building, components::Player, components::Sun, constants::K_ACTION_RADIUS,
+    constants::K_WIDTH, events::Action,
+};
 use bevy::prelude::*;
-use crate::{components::Player, events::Action};
+
+pub fn on_action(action: On<Action>, query: Query<(&Transform, &Name), With<Building>>) {
+    let action_position = action.event().position;
+    println!("On Action!");
+    for (transform, name) in query.iter() {
+        let distance = (action_position.x - transform.translation.x).abs();
+        if distance <= K_ACTION_RADIUS {
+            println!(
+                "Found building '{}' at distance {:.2} from action",
+                name, distance
+            );
+        }
+    }
+}
 
 pub fn player_action(
     keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -17,7 +34,7 @@ pub fn player_action(
 pub fn player_control(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Single<&mut Transform, With<Player>>
+    mut player_query: Single<&mut Transform, With<Player>>,
 ) {
     let mut direction = Vec3::ZERO;
 
@@ -36,4 +53,8 @@ pub fn player_control(
     if direction != Vec3::ZERO {
         println!("Player position: {:?}", player_query.translation);
     }
+}
+
+pub fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
+    sun_query.translation.x = (0.5 * time.elapsed_secs()).sin() * K_WIDTH / 2.0;
 }
