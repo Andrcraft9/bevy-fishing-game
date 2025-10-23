@@ -15,7 +15,7 @@ pub enum ObjectComponentType {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct LayerObject {
+pub struct LayerObjectDesc {
     pub t: ObjectType,
     pub component: ObjectComponentType,
     pub position: Vec2,
@@ -25,7 +25,7 @@ pub struct LayerObject {
 }
 
 pub struct LayerDesc {
-    pub objects: Vec<LayerObject>,
+    pub objects: Vec<LayerObjectDesc>,
     pub depth: f32,
     pub size: Vec2,
     pub name: String,
@@ -72,18 +72,25 @@ impl LayerDesc {
             // Add the specific component type
             match &obj.component {
                 ObjectComponentType::Player(_) => {
-                    commands.entity(entity_id).insert(crate::components::Player);
+                    commands.entity(entity_id).insert(components::Player);
                 }
                 ObjectComponentType::Ocean(_) => {
-                    commands.entity(entity_id).insert(crate::components::Ocean);
+                    commands.entity(entity_id).insert(components::Ocean).insert(
+                        components::ActionRange {
+                            range: obj.size.x / 2.0,
+                        },
+                    );
                 }
                 ObjectComponentType::Building(_) => {
                     commands
                         .entity(entity_id)
-                        .insert(crate::components::Building);
+                        .insert(components::Building)
+                        .insert(components::ActionRange {
+                            range: obj.size.x / 2.0,
+                        });
                 }
                 ObjectComponentType::Sun(_) => {
-                    commands.entity(entity_id).insert(crate::components::Sun);
+                    commands.entity(entity_id).insert(components::Sun);
                 }
             }
 

@@ -1,15 +1,19 @@
+use std::time::Duration;
+
 use bevy::{prelude::*, window::WindowResolution};
 
 mod components;
 mod constants;
 mod events;
 mod layer;
+mod states;
 mod systems;
 mod types;
 
 use components::*;
 use constants::*;
 use layer::*;
+use states::*;
 use types::*;
 
 fn main() {
@@ -22,11 +26,25 @@ fn main() {
             }),
             ..Default::default()
         }))
+        .insert_resource(Time::<Virtual>::from_max_delta(Duration::from_secs(1)))
+        .init_state::<GameState>()
         .add_observer(systems::on_action)
         .add_systems(Startup, setup)
-        .add_systems(Update, systems::layer_update)
-        .add_systems(Update, systems::player_action)
-        .add_systems(Update, systems::sun_update)
+        .add_systems(Update, systems::global_action)
+        .add_systems(
+            Update,
+            systems::layer_update.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::sun_update.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::game_player_action.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
+        .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)
         .run();
 }
 
@@ -39,7 +57,7 @@ fn setup(
 
     let layer_city = LayerDesc {
         objects: vec![
-            LayerObject {
+            LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Building(Building),
                 position: Vec2::new(-640.0, K_GROUND_LEVEL + 256.0),
@@ -47,7 +65,7 @@ fn setup(
                 color: Color::srgb(1.0, 0.0, 0.0),
                 name: "Red Building".to_string(),
             },
-            LayerObject {
+            LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Building(Building),
                 position: Vec2::new(-256.0, K_GROUND_LEVEL + 128.0),
@@ -55,7 +73,7 @@ fn setup(
                 color: Color::srgb(0.0, 1.0, 0.0),
                 name: "Green Building".to_string(),
             },
-            LayerObject {
+            LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Building(Building),
                 position: Vec2::new(140.0, K_GROUND_LEVEL + 64.0),
@@ -63,7 +81,7 @@ fn setup(
                 color: Color::srgb(0.2, 0.0, 0.2),
                 name: "Deck Building".to_string(),
             },
-            LayerObject {
+            LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean(Ocean),
                 position: Vec2::new(720.0, K_GROUND_LEVEL - 32.0),
@@ -78,7 +96,7 @@ fn setup(
     };
 
     let layer_sun = LayerDesc {
-        objects: vec![LayerObject {
+        objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Circle),
             component: ObjectComponentType::Sun(Sun),
             position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
@@ -92,7 +110,7 @@ fn setup(
     };
 
     let layer_play = LayerDesc {
-        objects: vec![LayerObject {
+        objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
             component: ObjectComponentType::Player(Player),
             position: Vec2::new(0.0, K_GROUND_LEVEL + 32.0),

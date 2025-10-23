@@ -15,7 +15,15 @@ pub struct Building;
 pub struct Sun;
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct ActionRange {
+    pub range: f32,
+}
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct Layer {
     pub depth: f32,
     pub size: Vec2,
 }
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct PlayerMenu;

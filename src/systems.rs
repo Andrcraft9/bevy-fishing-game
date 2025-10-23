@@ -1,16 +1,33 @@
 use crate::{
-    components::{Building, Layer, Player, Sun},
-    constants::{K_ACTION_RADIUS, K_HEIGHT, K_SPEED, K_WIDTH},
+    components::{ActionRange, Building, Layer, Ocean, Player, PlayerMenu, Sun},
+    constants::{K_HEIGHT, K_SPEED, K_WIDTH},
     events::Action,
+    states::GameState,
 };
+use bevy::app::AppExit;
 use bevy::prelude::*;
 
-pub fn on_action(action: On<Action>, query: Query<(&GlobalTransform, &Name), With<Building>>) {
+pub fn on_action(
+    action: On<Action>,
+    oceans: Query<(&GlobalTransform, &Name, &ActionRange), With<Ocean>>,
+    buildings: Query<(&GlobalTransform, &Name, &ActionRange), With<Building>>,
+) {
     let action_position = action.event().position;
     info!("On Action!");
-    for (transform, name) in query.iter() {
+
+    for (transform, name, action_range) in oceans.iter() {
         let distance = (action_position.x - transform.translation().x).abs();
-        if distance <= K_ACTION_RADIUS {
+        if distance <= action_range.range {
+            info!(
+                "Found ocean '{}' at distance {:.2} from action",
+                name, distance
+            );
+        }
+    }
+
+    for (transform, name, action_range) in buildings.iter() {
+        let distance = (action_position.x - transform.translation().x).abs();
+        if distance <= action_range.range {
             info!(
                 "Found building '{}' at distance {:.2} from action",
                 name, distance
@@ -19,16 +36,39 @@ pub fn on_action(action: On<Action>, query: Query<(&GlobalTransform, &Name), Wit
     }
 }
 
-pub fn player_action(
+pub fn global_action(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut app_exit_events: MessageWriter<AppExit>,
+    state: Res<State<GameState>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        if *state.get() != GameState::InGame {
+            info!("Back in Game!");
+            next_state.set(GameState::InGame);
+        } else {
+            info!("Quitting app!");
+            app_exit_events.write(AppExit::Success);
+        }
+    }
+}
+
+pub fn game_player_action(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     player_query: Single<&Transform, With<Player>>,
     mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Space) {
         info!("Action!");
         commands.trigger(Action {
             position: Vec2::new(player_query.translation.x, player_query.translation.y),
         });
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Tab) {
+        info!("Player menu!");
+        next_state.set(GameState::InPlayerMenu);
     }
 }
 
@@ -78,6 +118,24 @@ pub fn layer_update(
     }
 }
 
-pub fn sun_update(time: Res<Time>, mut sun_query: Single<&mut Transform, With<Sun>>) {
+pub fn sun_update(time: Res<Time<Virtual>>, mut sun_query: Single<&mut Transform, With<Sun>>) {
     sun_query.translation.y = (0.5 * time.elapsed_secs()).sin() * K_HEIGHT / 2.0;
+}
+
+pub fn enter_player_menu(mut commands: Commands, mut time: ResMut<Time<Virtual>>) {
+    info!("Creating player menu");
+    time.pause();
+    commands.spawn((Text::new("Enter Player Menu"), PlayerMenu));
+}
+
+pub fn exit_player_menu(
+    mut commands: Commands,
+    menu_query: Query<Entity, With<PlayerMenu>>,
+    mut time: ResMut<Time<Virtual>>,
+) {
+    info!("Removing player menu");
+    for entity in menu_query.iter() {
+        commands.entity(entity).despawn();
+    }
+    time.unpause();
 }
