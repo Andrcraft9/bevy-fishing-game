@@ -8,10 +8,10 @@ use bevy::prelude::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectComponentType {
-    Player(Player),
-    Ocean(Ocean),
-    Building(Building),
-    Sun(Sun),
+    Player,
+    Ocean,
+    Building,
+    Sun,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -71,17 +71,20 @@ impl LayerDesc {
 
             // Add the specific component type
             match &obj.component {
-                ObjectComponentType::Player(_) => {
-                    commands.entity(entity_id).insert(components::Player);
+                ObjectComponentType::Player => {
+                    commands.entity(entity_id).insert(components::Player {
+                        money: 0.0,
+                        items: Vec::new(),
+                    });
                 }
-                ObjectComponentType::Ocean(_) => {
+                ObjectComponentType::Ocean => {
                     commands.entity(entity_id).insert(components::Ocean).insert(
                         components::ActionRange {
                             range: obj.size.x / 2.0,
                         },
                     );
                 }
-                ObjectComponentType::Building(_) => {
+                ObjectComponentType::Building => {
                     commands
                         .entity(entity_id)
                         .insert(components::Building)
@@ -89,7 +92,7 @@ impl LayerDesc {
                             range: obj.size.x / 2.0,
                         });
                 }
-                ObjectComponentType::Sun(_) => {
+                ObjectComponentType::Sun => {
                     commands.entity(entity_id).insert(components::Sun);
                 }
             }

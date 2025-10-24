@@ -5,6 +5,7 @@ use bevy::{prelude::*, window::WindowResolution};
 mod components;
 mod constants;
 mod events;
+mod items;
 mod layer;
 mod states;
 mod systems;
@@ -59,7 +60,7 @@ fn setup(
         objects: vec![
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Building(Building),
+                component: ObjectComponentType::Building,
                 position: Vec2::new(-640.0, K_GROUND_LEVEL + 256.0),
                 size: Vec2::new(256.0, 512.0),
                 color: Color::srgb(1.0, 0.0, 0.0),
@@ -67,7 +68,7 @@ fn setup(
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Building(Building),
+                component: ObjectComponentType::Building,
                 position: Vec2::new(-256.0, K_GROUND_LEVEL + 128.0),
                 size: Vec2::new(128.0, 256.0),
                 color: Color::srgb(0.0, 1.0, 0.0),
@@ -75,7 +76,7 @@ fn setup(
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Building(Building),
+                component: ObjectComponentType::Building,
                 position: Vec2::new(140.0, K_GROUND_LEVEL + 64.0),
                 size: Vec2::new(128.0, 128.0),
                 color: Color::srgb(0.2, 0.0, 0.2),
@@ -83,7 +84,7 @@ fn setup(
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Ocean(Ocean),
+                component: ObjectComponentType::Ocean,
                 position: Vec2::new(720.0, K_GROUND_LEVEL - 32.0),
                 size: Vec2::new(1024.0, 64.0),
                 color: Color::srgb(0.0, 0.0, 1.0),
@@ -98,7 +99,7 @@ fn setup(
     let layer_sun = LayerDesc {
         objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Circle),
-            component: ObjectComponentType::Sun(Sun),
+            component: ObjectComponentType::Sun,
             position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
             size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 0.0),
@@ -112,7 +113,7 @@ fn setup(
     let layer_play = LayerDesc {
         objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
-            component: ObjectComponentType::Player(Player),
+            component: ObjectComponentType::Player,
             position: Vec2::new(0.0, K_GROUND_LEVEL + 32.0),
             size: Vec2::new(8.0, 64.0),
             color: Color::srgb(1.0, 1.0, 1.0),

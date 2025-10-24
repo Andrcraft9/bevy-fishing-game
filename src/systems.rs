@@ -2,6 +2,7 @@ use crate::{
     components::{ActionRange, Building, Layer, Ocean, Player, PlayerMenu, Sun},
     constants::{K_HEIGHT, K_SPEED, K_WIDTH},
     events::Action,
+    items::{self, Value},
     states::GameState,
 };
 use bevy::app::AppExit;
@@ -9,6 +10,7 @@ use bevy::prelude::*;
 
 pub fn on_action(
     action: On<Action>,
+    mut player: Single<&mut Player>,
     oceans: Query<(&GlobalTransform, &Name, &ActionRange), With<Ocean>>,
     buildings: Query<(&GlobalTransform, &Name, &ActionRange), With<Building>>,
 ) {
@@ -22,6 +24,11 @@ pub fn on_action(
                 "Found ocean '{}' at distance {:.2} from action",
                 name, distance
             );
+            info!("Fishing...");
+            player.items.push(items::Item::Fish(items::Fish {
+                t: items::FishType::Golden,
+                weight: 100.0,
+            }));
         }
     }
 
@@ -32,6 +39,12 @@ pub fn on_action(
                 "Found building '{}' at distance {:.2} from action",
                 name, distance
             );
+            info!("Selling...");
+            let item = player.items.pop();
+            if let Some(item) = item {
+                info!("Sold item: {}", item.name());
+                player.money += item.value();
+            }
         }
     }
 }
@@ -122,10 +135,41 @@ pub fn sun_update(time: Res<Time<Virtual>>, mut sun_query: Single<&mut Transform
     sun_query.translation.y = (0.5 * time.elapsed_secs()).sin() * K_HEIGHT / 2.0;
 }
 
-pub fn enter_player_menu(mut commands: Commands, mut time: ResMut<Time<Virtual>>) {
+pub fn enter_player_menu(
+    mut commands: Commands,
+    mut time: ResMut<Time<Virtual>>,
+    player: Single<&Player>,
+) {
     info!("Creating player menu");
     time.pause();
-    commands.spawn((Text::new("Enter Player Menu"), PlayerMenu));
+
+    let money = format!("Money: {}", player.money.to_string());
+    commands.spawn((Text::new(money), TextFont::from_font_size(48.0), PlayerMenu));
+
+    commands
+        .spawn((
+            Node {
+                width: percent(50),
+                height: percent(50),
+                top: percent(25),
+                left: percent(25),
+                flex_direction: FlexDirection::Column,
+                ..default()
+            },
+            PlayerMenu,
+            BackgroundColor(Color::srgb(0.50, 0.50, 0.50)),
+        ))
+        .with_children(|parent| {
+            for item in &player.items {
+                parent.spawn((
+                    Text::new(format!("Item: {}; Value: {}", item.name(), item.value())),
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                ));
+            }
+        });
 }
 
 pub fn exit_player_menu(
