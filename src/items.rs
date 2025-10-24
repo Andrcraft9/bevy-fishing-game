@@ -1,5 +1,9 @@
 /// Item System
 
+pub trait Weight {
+    fn weight(&self) -> f32;
+}
+
 pub trait Value {
     fn name(&self) -> String;
     fn value(&self) -> f32;
@@ -20,6 +24,14 @@ impl Value for Item {
     fn value(&self) -> f32 {
         match self {
             Item::Fish(fish) => fish.value(),
+        }
+    }
+}
+
+impl Weight for Item {
+    fn weight(&self) -> f32 {
+        match self {
+            Item::Fish(fish) => fish.weight,
         }
     }
 }

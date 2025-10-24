@@ -2,11 +2,12 @@ use crate::{
     components::{ActionRange, Building, Layer, Ocean, Player, PlayerMenu, Sun},
     constants::{K_HEIGHT, K_SPEED, K_WIDTH},
     events::Action,
-    items::{self, Value},
+    items::{self, Value, Weight},
     states::GameState,
 };
 use bevy::app::AppExit;
 use bevy::prelude::*;
+use rand::Rng;
 
 pub fn on_action(
     action: On<Action>,
@@ -25,10 +26,29 @@ pub fn on_action(
                 name, distance
             );
             info!("Fishing...");
-            player.items.push(items::Item::Fish(items::Fish {
-                t: items::FishType::Golden,
-                weight: 100.0,
-            }));
+            // Random fishing logic
+            let mut rng = rand::thread_rng();
+            let chance: f32 = rng.gen_range(0.0..1.0);
+            if chance < 0.1 {
+                // 10% chance for golden fish
+                let weight = rng.gen_range(0.1..20.0);
+                player.items.push(items::Item::Fish(items::Fish {
+                    t: items::FishType::Golden,
+                    weight,
+                }));
+                info!("Caught a Golden fish! Weight: {:.2}", weight);
+            } else if chance < 0.5 {
+                // 40% chance for silver fish (0.1 to 0.5 range)
+                let weight = rng.gen_range(0.1..20.0);
+                player.items.push(items::Item::Fish(items::Fish {
+                    t: items::FishType::Silver,
+                    weight,
+                }));
+                info!("Caught a Silver fish! Weight: {:.2}", weight);
+            } else {
+                // 50% chance for nothing (0.5 to 1.0 range)
+                info!("Nothing caught this time...");
+            }
         }
     }
 
@@ -162,7 +182,11 @@ pub fn enter_player_menu(
         .with_children(|parent| {
             for item in &player.items {
                 parent.spawn((
-                    Text::new(format!("Item: {}; Value: {}", item.name(), item.value())),
+                    Text::new(format!(
+                        "Item: {}; Weight: {:.2}",
+                        item.name(),
+                        item.weight()
+                    )),
                     Node {
                         flex_direction: FlexDirection::Row,
                         ..default()
