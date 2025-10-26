@@ -1,10 +1,27 @@
-use crate::{
-    components::{self, Building, Ocean, Player, Sun},
-    types::{ObjectType, PrimitiveType},
-};
-use bevy::prelude::*;
+use crate::components::{self, Building, Ocean, Player, Sun};
+use bevy::{asset::AssetPath, prelude::*};
 
 /// Layer System
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PrimitiveType {
+    Rectangle,
+    Circle,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpriteDesc {
+    pub path: String,
+    pub splat: u32,
+    pub cols: u32,
+    pub rows: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ObjectType {
+    Primitive(PrimitiveType),
+    Sprite(SpriteDesc),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectComponentType {
@@ -35,7 +52,9 @@ impl LayerDesc {
     pub fn build(
         &self,
         commands: &mut Commands,
+        asset_server: &Res<AssetServer>,
         meshes: &mut ResMut<Assets<Mesh>>,
+        texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
     ) {
         let layer_entity = commands
@@ -50,24 +69,56 @@ impl LayerDesc {
             .id();
 
         for obj in &self.objects {
-            let mesh = match obj.t {
+            let entity_id = match &obj.t {
                 ObjectType::Primitive(PrimitiveType::Rectangle) => {
-                    meshes.add(Rectangle::new(obj.size.x, obj.size.y))
+                    let mesh = meshes.add(Rectangle::new(obj.size.x, obj.size.y));
+                    commands
+                        .spawn((
+                            Mesh2d(mesh),
+                            MeshMaterial2d(materials.add(obj.color.clone())),
+                            Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                            Name::new(obj.name.clone()),
+                        ))
+                        .id()
                 }
                 ObjectType::Primitive(PrimitiveType::Circle) => {
-                    meshes.add(Circle::new(f32::max(obj.size.x, obj.size.y) / 2.0))
+                    let mesh = meshes.add(Circle::new(f32::max(obj.size.x, obj.size.y) / 2.0));
+                    commands
+                        .spawn((
+                            Mesh2d(mesh),
+                            MeshMaterial2d(materials.add(obj.color.clone())),
+                            Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                            Name::new(obj.name.clone()),
+                        ))
+                        .id()
+                }
+                ObjectType::Sprite(sprite) => {
+                    let texture = asset_server.load(sprite.path.clone());
+                    let layout = TextureAtlasLayout::from_grid(
+                        UVec2::splat(sprite.splat),
+                        sprite.cols,
+                        sprite.rows,
+                        None,
+                        None,
+                    );
+                    let texture_atlas_layout = texture_atlas_layouts.add(layout);
+                    commands
+                        .spawn((
+                            Sprite {
+                                image: texture.clone(),
+                                texture_atlas: Some(TextureAtlas {
+                                    layout: texture_atlas_layout.clone(),
+                                    index: 0,
+                                }),
+                                custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
+                                ..default()
+                            },
+                            Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                            Name::new(obj.name.clone()),
+                        ))
+                        .id()
                 }
             };
-
-            // Spawn entity with common components
-            let entity_id = commands
-                .spawn((
-                    Mesh2d(mesh),
-                    MeshMaterial2d(materials.add(obj.color.clone())),
-                    Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
-                    Name::new(obj.name.clone()),
-                ))
-                .id();
 
             // Add the specific component type
             match &obj.component {

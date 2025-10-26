@@ -9,13 +9,11 @@ mod items;
 mod layer;
 mod states;
 mod systems;
-mod types;
 
 use components::*;
 use constants::*;
 use layer::*;
 use states::*;
-use types::*;
 
 fn main() {
     App::new()
@@ -51,7 +49,9 @@ fn main() {
 
 fn setup(
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     commands.spawn(Camera2d);
@@ -112,10 +112,15 @@ fn setup(
 
     let layer_play = LayerDesc {
         objects: vec![LayerObjectDesc {
-            t: ObjectType::Primitive(PrimitiveType::Rectangle),
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "player/walk.png".to_string(),
+                splat: 48,
+                cols: 6,
+                rows: 1,
+            }),
             component: ObjectComponentType::Player,
             position: Vec2::new(0.0, K_GROUND_LEVEL + 32.0),
-            size: Vec2::new(8.0, 64.0),
+            size: Vec2::new(64.0, 96.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Player".to_string(),
         }],
@@ -124,7 +129,25 @@ fn setup(
         name: "Play".to_string(),
     };
 
-    layer_city.build(&mut commands, &mut meshes, &mut materials);
-    layer_sun.build(&mut commands, &mut meshes, &mut materials);
-    layer_play.build(&mut commands, &mut meshes, &mut materials);
+    layer_city.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_sun.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_play.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
 }

@@ -43,3 +43,6 @@ cargo run --release
 ## License
 
 This project is a prototype/educational example. Feel free to use it as a starting point for your own Bevy projects.
+
+## Credits
+- Free Fishing Game Assets Pixel Art Pack by https://craftpix.net, license: https://craftpix.net/file-licenses/
