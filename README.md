@@ -40,6 +40,7 @@ cargo run --release
 - **A**: Move left
 - **D**: Move right
 - **Space**: Action - interact with objects
+- **Tab**: Inventory
 
 ## License
 
