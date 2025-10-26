@@ -39,8 +39,9 @@ cargo run --release
 ### Controls
 - **A**: Move left
 - **D**: Move right
-- **Space**: Action - interact with objects
+- **Space**: Action, interact with objects
 - **Tab**: Inventory
+- **Esc**: Exit menu/game
 
 ## License
 
