@@ -59,35 +59,29 @@ fn setup(
     let layer_city = LayerDesc {
         objects: vec![
             LayerObjectDesc {
-                t: ObjectType::Primitive(PrimitiveType::Rectangle),
+                t: ObjectType::Sprite(SpriteDesc {
+                    path: "building/hut.png".to_string(),
+                }),
                 component: ObjectComponentType::Building,
-                position: Vec2::new(-640.0, K_GROUND_LEVEL + 256.0),
-                size: Vec2::new(256.0, 512.0),
-                color: Color::srgb(1.0, 0.0, 0.0),
-                name: "Red Building".to_string(),
+                position: Vec2::new(512.0, K_GROUND_LEVEL + 128.0 - 78.0),
+                size: Vec2::new(384.0, 256.0),
+                color: Color::srgb_u8(128, 128, 128),
+                name: "Hut".to_string(),
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Building,
-                position: Vec2::new(-256.0, K_GROUND_LEVEL + 128.0),
-                size: Vec2::new(128.0, 256.0),
-                color: Color::srgb(0.0, 1.0, 0.0),
-                name: "Green Building".to_string(),
-            },
-            LayerObjectDesc {
-                t: ObjectType::Primitive(PrimitiveType::Rectangle),
-                component: ObjectComponentType::Building,
-                position: Vec2::new(140.0, K_GROUND_LEVEL + 64.0),
-                size: Vec2::new(128.0, 128.0),
-                color: Color::srgb(0.2, 0.0, 0.2),
-                name: "Deck Building".to_string(),
+                component: ObjectComponentType::Land,
+                position: Vec2::new(512.0 - 2024.0, K_GROUND_LEVEL - 32.0),
+                size: Vec2::new(4096.0, 64.0),
+                color: Color::srgb_u8(60, 128, 60),
+                name: "Land".to_string(),
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean,
-                position: Vec2::new(720.0, K_GROUND_LEVEL - 32.0),
-                size: Vec2::new(1024.0, 64.0),
-                color: Color::srgb(0.0, 0.0, 1.0),
+                position: Vec2::new(512.0 + 2024.0, K_GROUND_LEVEL - 32.0),
+                size: Vec2::new(4096.0, 64.0),
+                color: Color::srgb_u8(85, 128, 200),
                 name: "Ocean".to_string(),
             },
         ],
@@ -112,15 +106,16 @@ fn setup(
 
     let layer_play = LayerDesc {
         objects: vec![LayerObjectDesc {
-            t: ObjectType::Sprite(SpriteDesc {
+            t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
                 path: "player/walk.png".to_string(),
                 splat: 48,
                 cols: 6,
                 rows: 1,
+                index: 0,
             }),
             component: ObjectComponentType::Player,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + 32.0),
-            size: Vec2::new(64.0, 96.0),
+            position: Vec2::new(0.0, K_GROUND_LEVEL + 64.0),
+            size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Player".to_string(),
         }],

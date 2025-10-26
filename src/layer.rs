@@ -12,20 +12,28 @@ pub enum PrimitiveType {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SpriteDesc {
     pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SpriteAtlasDesc {
+    pub path: String,
     pub splat: u32,
     pub cols: u32,
     pub rows: u32,
+    pub index: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ObjectType {
     Primitive(PrimitiveType),
     Sprite(SpriteDesc),
+    SpriteAtlas(SpriteAtlasDesc),
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectComponentType {
     Player,
+    Land,
     Ocean,
     Building,
     Sun,
@@ -94,6 +102,20 @@ impl LayerDesc {
                 }
                 ObjectType::Sprite(sprite) => {
                     let texture = asset_server.load(sprite.path.clone());
+                    commands
+                        .spawn((
+                            Sprite {
+                                image: texture.clone(),
+                                custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
+                                ..default()
+                            },
+                            Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                            Name::new(obj.name.clone()),
+                        ))
+                        .id()
+                }
+                ObjectType::SpriteAtlas(sprite) => {
+                    let texture = asset_server.load(sprite.path.clone());
                     let layout = TextureAtlasLayout::from_grid(
                         UVec2::splat(sprite.splat),
                         sprite.cols,
@@ -108,7 +130,7 @@ impl LayerDesc {
                                 image: texture.clone(),
                                 texture_atlas: Some(TextureAtlas {
                                     layout: texture_atlas_layout.clone(),
-                                    index: 0,
+                                    index: sprite.index,
                                 }),
                                 custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
                                 ..default()
@@ -123,10 +145,16 @@ impl LayerDesc {
             // Add the specific component type
             match &obj.component {
                 ObjectComponentType::Player => {
-                    commands.entity(entity_id).insert(components::Player {
-                        money: 0.0,
-                        items: Vec::new(),
-                    });
+                    commands
+                        .entity(entity_id)
+                        .insert(components::Player {
+                            money: 0.0,
+                            items: Vec::new(),
+                        })
+                        .insert(components::Direction::Right);
+                }
+                ObjectComponentType::Land => {
+                    commands.entity(entity_id).insert(components::Land);
                 }
                 ObjectComponentType::Ocean => {
                     commands.entity(entity_id).insert(components::Ocean).insert(

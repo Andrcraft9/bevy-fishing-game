@@ -3,11 +3,20 @@ use bevy::prelude::*;
 
 /// Component Types
 
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub enum Direction {
+    Left,
+    Right,
+}
+
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Player {
     pub money: f32,
     pub items: Vec<items::Item>,
 }
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct Land;
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Ocean;

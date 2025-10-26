@@ -1,5 +1,5 @@
 use crate::{
-    components::{ActionRange, Building, Layer, Ocean, Player, PlayerMenu, Sun},
+    components::{ActionRange, Building, Direction, Layer, Ocean, Player, PlayerMenu, Sun},
     constants::{K_HEIGHT, K_SPEED, K_WIDTH},
     events::Action,
     items::{self, Value, Weight},
@@ -105,46 +105,34 @@ pub fn game_player_action(
     }
 }
 
-pub fn player_control(
-    time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Single<&mut Transform, With<Player>>,
-) {
-    let mut direction = Vec3::ZERO;
-
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        direction.x -= 1.0;
-        debug!("Moving left!");
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        direction.x += 1.0;
-        debug!("Moving right!");
-    }
-
-    player_query.translation += direction * K_SPEED * time.delta_secs();
-
-    if direction != Vec3::ZERO {
-        debug!("Player position: {:?}", player_query.translation);
-    }
-}
-
 pub fn layer_update(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut player_query: Query<(&mut Transform, &Layer)>,
+    player: Single<(&mut Direction, &mut Transform), With<Player>>,
+    mut layers: Query<(&mut Transform, &Layer), Without<Player>>,
 ) {
-    let mut direction = 0.0;
+    let mut mov = 0.0;
+    let (mut direction, mut transform) = player.into_inner();
     if keyboard_input.pressed(KeyCode::KeyA) {
-        direction += 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        direction -= 1.0;
+        mov += 1.0;
+        if *direction != Direction::Left {
+            *direction = Direction::Left;
+            transform.rotate(Quat::from_rotation_y(180.0_f32.to_radians()));
+        }
     }
 
-    for (mut transform, layer) in player_query.iter_mut() {
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        mov -= 1.0;
+        if *direction != Direction::Right {
+            *direction = Direction::Right;
+            transform.rotate(Quat::from_rotation_y(180.0_f32.to_radians()));
+        }
+    }
+
+    for (mut transform, layer) in layers.iter_mut() {
         if layer.depth <= 0.0 {
-            transform.translation.x += direction * K_SPEED * time.delta_secs();
-            if direction != 0.0 {
+            transform.translation.x += mov * K_SPEED * time.delta_secs();
+            if mov != 0.0 {
                 debug!("Layer transform: {:?}", transform.translation);
             }
         }
