@@ -1,4 +1,6 @@
-use crate::components::{self, Building, Ocean, Player, Sun};
+use std::time::Duration;
+
+use crate::components::{self, AnimationConfig, Building, Ocean, Player, Sun};
 use bevy::{asset::AssetPath, prelude::*};
 
 /// Layer System
@@ -33,10 +35,12 @@ pub enum ObjectType {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ObjectComponentType {
     Player,
+    Boat,
     Land,
     Ocean,
     Building,
     Sun,
+    Sky,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,6 +139,12 @@ impl LayerDesc {
                                 custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
                                 ..default()
                             },
+                            AnimationConfig {
+                                first_index: sprite.index,
+                                last_index: std::cmp::max(sprite.cols - 1, sprite.rows - 1)
+                                    as usize,
+                                timer: Timer::new(Duration::from_secs(0), TimerMode::Once),
+                            },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                             Name::new(obj.name.clone()),
                         ))
@@ -152,6 +162,9 @@ impl LayerDesc {
                             items: Vec::new(),
                         })
                         .insert(components::Direction::Right);
+                }
+                ObjectComponentType::Boat => {
+                    commands.entity(entity_id).insert(components::Boat);
                 }
                 ObjectComponentType::Land => {
                     commands.entity(entity_id).insert(components::Land);
@@ -173,6 +186,9 @@ impl LayerDesc {
                 }
                 ObjectComponentType::Sun => {
                     commands.entity(entity_id).insert(components::Sun);
+                }
+                ObjectComponentType::Sky => {
+                    commands.entity(entity_id).insert(components::Sky);
                 }
             }
 

@@ -16,6 +16,9 @@ pub struct Player {
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct Boat;
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct Land;
 
 #[derive(Component, Debug, Clone, PartialEq)]
@@ -28,8 +31,18 @@ pub struct Building;
 pub struct Sun;
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct Sky;
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct ActionRange {
     pub range: f32,
+}
+
+#[derive(Component)]
+pub struct AnimationConfig {
+    pub first_index: usize,
+    pub last_index: usize,
+    pub timer: Timer,
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]

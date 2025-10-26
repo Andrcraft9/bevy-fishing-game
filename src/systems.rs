@@ -1,5 +1,9 @@
+use std::time::Duration;
+
 use crate::{
-    components::{ActionRange, Building, Direction, Layer, Ocean, Player, PlayerMenu, Sun},
+    components::{
+        ActionRange, AnimationConfig, Building, Direction, Layer, Ocean, Player, PlayerMenu, Sun,
+    },
     constants::{K_HEIGHT, K_SPEED, K_WIDTH},
     events::Action,
     items::{self, Value, Weight},
@@ -108,16 +112,16 @@ pub fn game_player_action(
 pub fn layer_update(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Direction, &mut Transform), With<Player>>,
+    player: Single<(&mut Direction, &mut Sprite, &mut AnimationConfig), With<Player>>,
     mut layers: Query<(&mut Transform, &Layer), Without<Player>>,
 ) {
     let mut mov = 0.0;
-    let (mut direction, mut transform) = player.into_inner();
+    let (mut direction, mut sprite, mut animation) = player.into_inner();
     if keyboard_input.pressed(KeyCode::KeyA) {
         mov += 1.0;
         if *direction != Direction::Left {
             *direction = Direction::Left;
-            transform.rotate(Quat::from_rotation_y(180.0_f32.to_radians()));
+            sprite.flip_x = true;
         }
     }
 
@@ -125,12 +129,32 @@ pub fn layer_update(
         mov -= 1.0;
         if *direction != Direction::Right {
             *direction = Direction::Right;
-            transform.rotate(Quat::from_rotation_y(180.0_f32.to_radians()));
+            sprite.flip_x = false;
+        }
+    }
+
+    if mov != 0.0 {
+        if animation.timer.is_finished() {
+            animation.timer = Timer::new(Duration::from_millis(100), TimerMode::Once);
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                if atlas.index >= animation.last_index {
+                    atlas.index = animation.first_index
+                } else {
+                    atlas.index += 1;
+                }
+            }
+        } else {
+            animation.timer.tick(time.delta());
+        }
+    } else {
+        animation.timer.finish();
+        if let Some(atlas) = &mut sprite.texture_atlas {
+            atlas.index = animation.first_index
         }
     }
 
     for (mut transform, layer) in layers.iter_mut() {
-        if layer.depth <= 0.0 {
+        if layer.depth <= 0.0 || layer.depth >= 1.0 {
             transform.translation.x += mov * K_SPEED * time.delta_secs();
             if mov != 0.0 {
                 debug!("Layer transform: {:?}", transform.translation);

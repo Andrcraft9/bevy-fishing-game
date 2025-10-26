@@ -10,7 +10,6 @@ mod layer;
 mod states;
 mod systems;
 
-use components::*;
 use constants::*;
 use layer::*;
 use states::*;
@@ -63,7 +62,7 @@ fn setup(
                     path: "building/hut.png".to_string(),
                 }),
                 component: ObjectComponentType::Building,
-                position: Vec2::new(512.0, K_GROUND_LEVEL + 128.0 - 78.0),
+                position: Vec2::new(512.0, K_GROUND_LEVEL + 128.0 - 79.0),
                 size: Vec2::new(384.0, 256.0),
                 color: Color::srgb_u8(128, 128, 128),
                 name: "Hut".to_string(),
@@ -101,6 +100,20 @@ fn setup(
         }],
         depth: -1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Sun".to_string(),
+    };
+
+    let layer_sky = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Primitive(PrimitiveType::Rectangle),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
+            size: Vec2::new(8192.0, 1024.0),
+            color: Color::srgb_u8(0, 180, 250),
+            name: "Sky".to_string(),
+        }],
+        depth: -10.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Sky".to_string(),
     };
 
@@ -119,9 +132,25 @@ fn setup(
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Player".to_string(),
         }],
-        depth: 1.0,
+        depth: 0.5,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Play".to_string(),
+    };
+
+    let layer_boat = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "boat/boat.png".to_string(),
+            }),
+            component: ObjectComponentType::Boat,
+            position: Vec2::new(512.0, K_GROUND_LEVEL + 16.0),
+            size: Vec2::new(128.0, 32.0),
+            color: Color::srgb(1.0, 1.0, 1.0),
+            name: "Boat".to_string(),
+        }],
+        depth: 1.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Boat".to_string(),
     };
 
     layer_city.build(
@@ -138,7 +167,21 @@ fn setup(
         &mut texture_atlas_layouts,
         &mut materials,
     );
+    layer_sky.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
     layer_play.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_boat.build(
         &mut commands,
         &asset_server,
         &mut meshes,
