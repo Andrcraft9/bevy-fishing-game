@@ -9,11 +9,12 @@ The project follows a modular architecture with clear separation of concerns:
 ```
 src/
 ├── main.rs          # Entry point and game setup
+├── constants.rs     # Game constants
+├── items.rs         # Item system
+├── layer.rs         # Object spawning system
 ├── components.rs    # ECS Components
 ├── events.rs        # Game events
-├── types.rs         # Type definitions
-├── layer.rs         # Object spawning system
-├── constants.rs     # Game constants
+├── states.rs        # Game states
 └── systems.rs       # Game systems
 ```
 
@@ -38,7 +39,7 @@ cargo run --release
 ### Controls
 - **A**: Move left
 - **D**: Move right
-- **Space**: Interact with nearby building
+- **Space**: Action - interact with objects
 
 ## License
 
