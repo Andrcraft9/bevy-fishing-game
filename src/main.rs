@@ -93,7 +93,7 @@ fn setup(
         objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Circle),
             component: ObjectComponentType::Sun,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
+            position: Vec2::new(512.0, K_GROUND_LEVEL + 512.0),
             size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 0.0),
             name: "Sun".to_string(),
