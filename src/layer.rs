@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use crate::components::{self, AnimationConfig, Building, Ocean, Player, Sun};
-use bevy::{asset::AssetPath, prelude::*};
+use crate::components::{self, AnimationConfig};
+use bevy::prelude::*;
 
 /// Layer System
 
@@ -11,12 +11,13 @@ pub enum PrimitiveType {
     Circle,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct SpriteDesc {
     pub path: String,
+    pub mode: SpriteImageMode,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct SpriteAtlasDesc {
     pub path: String,
     pub splat: u32,
@@ -25,7 +26,7 @@ pub struct SpriteAtlasDesc {
     pub index: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjectType {
     Primitive(PrimitiveType),
     Sprite(SpriteDesc),
@@ -111,6 +112,7 @@ impl LayerDesc {
                             Sprite {
                                 image: texture.clone(),
                                 custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
+                                image_mode: sprite.mode.clone(),
                                 ..default()
                             },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),

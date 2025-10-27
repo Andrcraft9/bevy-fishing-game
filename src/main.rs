@@ -60,6 +60,7 @@ fn setup(
             LayerObjectDesc {
                 t: ObjectType::Sprite(SpriteDesc {
                     path: "building/hut.png".to_string(),
+                    ..default()
                 }),
                 component: ObjectComponentType::Building,
                 position: Vec2::new(512.0, K_GROUND_LEVEL + 128.0 - 79.0),
@@ -98,7 +99,7 @@ fn setup(
             color: Color::srgb(1.0, 1.0, 0.0),
             name: "Sun".to_string(),
         }],
-        depth: -1.0,
+        depth: -9.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Sun".to_string(),
     };
@@ -107,14 +108,98 @@ fn setup(
         objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
             component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
-            size: Vec2::new(8192.0, 1024.0),
+            position: Vec2::new(0.0, 0.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
             color: Color::srgb_u8(0, 180, 250),
             name: "Sky".to_string(),
         }],
         depth: -10.0,
-        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Sky".to_string(),
+    };
+
+    let layer_mountain = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "sky/glacial_mountains.png".to_string(),
+                mode: SpriteImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: false,
+                    stretch_value: 3.0,
+                },
+            }),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, 0.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+            color: Color::srgb_u8(0, 180, 0),
+            name: "Mountain".to_string(),
+        }],
+        depth: -8.0,
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        name: "Mountain".to_string(),
+    };
+
+    let layer_clouds1 = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "sky/clouds_mg_1.png".to_string(),
+                mode: SpriteImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: false,
+                    stretch_value: 3.0,
+                },
+            }),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+            color: Color::srgb_u8(0, 180, 0),
+            name: "Clouds-1".to_string(),
+        }],
+        depth: -5.0,
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        name: "Clouds".to_string(),
+    };
+
+    let layer_clouds2 = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "sky/clouds_mg_2.png".to_string(),
+                mode: SpriteImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: false,
+                    stretch_value: 3.0,
+                },
+            }),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+            color: Color::srgb_u8(0, 180, 0),
+            name: "Clouds-2".to_string(),
+        }],
+        depth: -6.0,
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        name: "Clouds".to_string(),
+    };
+
+    let layer_clouds3 = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "sky/clouds_mg_3.png".to_string(),
+                mode: SpriteImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: false,
+                    stretch_value: 2.0,
+                },
+            }),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+            color: Color::srgb_u8(0, 180, 0),
+            name: "Clouds-3".to_string(),
+        }],
+        depth: -7.0,
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        name: "Clouds".to_string(),
     };
 
     let layer_play = LayerDesc {
@@ -141,6 +226,7 @@ fn setup(
         objects: vec![LayerObjectDesc {
             t: ObjectType::Sprite(SpriteDesc {
                 path: "boat/boat.png".to_string(),
+                ..default()
             }),
             component: ObjectComponentType::Boat,
             position: Vec2::new(512.0, K_GROUND_LEVEL + 16.0),
@@ -168,6 +254,34 @@ fn setup(
         &mut materials,
     );
     layer_sky.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_mountain.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_clouds3.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_clouds2.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_clouds1.build(
         &mut commands,
         &asset_server,
         &mut meshes,
