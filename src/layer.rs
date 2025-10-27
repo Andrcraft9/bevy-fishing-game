@@ -57,6 +57,7 @@ pub struct LayerObjectDesc {
 pub struct LayerDesc {
     pub objects: Vec<LayerObjectDesc>,
     pub depth: f32,
+    pub speed: f32,
     pub size: Vec2,
     pub name: String,
 }
@@ -76,6 +77,7 @@ impl LayerDesc {
                 Name::new(self.name.clone()),
                 components::Layer {
                     depth: self.depth,
+                    speed: self.speed,
                     size: self.size,
                 },
             ))

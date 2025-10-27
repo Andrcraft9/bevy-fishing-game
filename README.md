@@ -50,3 +50,4 @@ This project is a prototype/educational example. Feel free to use it as a starti
 ## Credits
 - Free Fishing Game Assets Pixel Art Pack by https://craftpix.net, license: https://craftpix.net/file-licenses/
 - "GLACIAL MOUNTAINS: PARALLAX BACKGROUND" Pixel Art created by Vicente Nitti, license: CC BY 4.0
+- "TAIGA ASSETS PACK v2" Pixel Art created by Vicente Nitti, license: CC BY 4.0

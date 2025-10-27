@@ -155,7 +155,7 @@ pub fn layer_update(
 
     for (mut transform, layer) in layers.iter_mut() {
         if layer.depth <= 0.0 || layer.depth >= 1.0 {
-            transform.translation.x += mov * K_SPEED * time.delta_secs();
+            transform.translation.x += mov * K_SPEED * layer.speed * time.delta_secs();
             if mov != 0.0 {
                 debug!("Layer transform: {:?}", transform.translation);
             }

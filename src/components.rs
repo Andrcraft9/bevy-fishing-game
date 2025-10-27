@@ -48,6 +48,7 @@ pub struct AnimationConfig {
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Layer {
     pub depth: f32,
+    pub speed: f32,
     pub size: Vec2,
 }
 

@@ -86,6 +86,7 @@ fn setup(
             },
         ],
         depth: 0.0,
+        speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "City".to_string(),
     };
@@ -94,12 +95,13 @@ fn setup(
         objects: vec![LayerObjectDesc {
             t: ObjectType::Primitive(PrimitiveType::Circle),
             component: ObjectComponentType::Sun,
-            position: Vec2::new(512.0, K_GROUND_LEVEL + 512.0),
+            position: Vec2::new(0.0, K_GROUND_LEVEL + 512.0),
             size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 0.0),
             name: "Sun".to_string(),
         }],
         depth: -9.0,
+        speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Sun".to_string(),
     };
@@ -114,6 +116,7 @@ fn setup(
             name: "Sky".to_string(),
         }],
         depth: -10.0,
+        speed: 0.0,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Sky".to_string(),
     };
@@ -135,6 +138,7 @@ fn setup(
             name: "Mountain".to_string(),
         }],
         depth: -8.0,
+        speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Mountain".to_string(),
     };
@@ -156,6 +160,7 @@ fn setup(
             name: "Clouds-1".to_string(),
         }],
         depth: -5.0,
+        speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Clouds".to_string(),
     };
@@ -177,6 +182,7 @@ fn setup(
             name: "Clouds-2".to_string(),
         }],
         depth: -6.0,
+        speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Clouds".to_string(),
     };
@@ -198,8 +204,31 @@ fn setup(
             name: "Clouds-3".to_string(),
         }],
         depth: -7.0,
+        speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Clouds".to_string(),
+    };
+
+    let layer_forest = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "forest/forest.png".to_string(),
+                mode: SpriteImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: false,
+                    stretch_value: 2.0,
+                },
+            }),
+            component: ObjectComponentType::Sky,
+            position: Vec2::new(0.0, 104.0 - K_HEIGHT / 2.0),
+            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT / 2.0),
+            color: Color::srgb_u8(0, 180, 0),
+            name: "Forest".to_string(),
+        }],
+        depth: -4.0,
+        speed: 0.5,
+        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        name: "Forest".to_string(),
     };
 
     let layer_play = LayerDesc {
@@ -218,6 +247,7 @@ fn setup(
             name: "Player".to_string(),
         }],
         depth: 0.5,
+        speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Play".to_string(),
     };
@@ -235,6 +265,7 @@ fn setup(
             name: "Boat".to_string(),
         }],
         depth: 1.0,
+        speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Boat".to_string(),
     };
@@ -282,6 +313,13 @@ fn setup(
         &mut materials,
     );
     layer_clouds1.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
+    layer_forest.build(
         &mut commands,
         &asset_server,
         &mut meshes,
