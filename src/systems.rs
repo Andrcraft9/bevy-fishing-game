@@ -2,10 +2,11 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, AnimationConfig, Building, Direction, Layer, Ocean, Player, PlayerMenu, Sun,
+        ActionRange, ActiveSprite, AnimationConfig, Boat, BoatLayer, Building, Direction, Land,
+        Layer, Ocean, Player, PlayerLayer, PlayerMenu, SpriteCollection, Sun,
     },
-    constants::{K_HEIGHT, K_SPEED, K_WIDTH},
-    events::Action,
+    constants::{K_GROUND_LEVEL, K_HEIGHT, K_SPEED, K_WIDTH},
+    events::{Action, SwitchSprite},
     items::{self, Value, Weight},
     states::GameState,
 };
@@ -92,20 +93,84 @@ pub fn global_action(
 
 pub fn game_player_action(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_query: Single<&Transform, With<Player>>,
+    player_transform: Single<&GlobalTransform, With<Player>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        info!("Action!");
-        commands.trigger(Action {
-            position: Vec2::new(player_query.translation.x, player_query.translation.y),
-        });
-    }
-
     if keyboard_input.just_pressed(KeyCode::Tab) {
         info!("Player menu!");
         next_state.set(GameState::InPlayerMenu);
+        return;
+    }
+
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        info!("Action!");
+        commands.trigger(Action {
+            position: Vec2::new(
+                player_transform.translation().x,
+                player_transform.translation().y,
+            ),
+        });
+        return;
+    }
+}
+
+pub fn game_player_boat(
+    player_query: Single<
+        (
+            Entity,
+            &mut Transform,
+            &GlobalTransform,
+            Option<&ActiveSprite>,
+        ),
+        (With<Player>, Without<BoatLayer>),
+    >,
+    oceans: Query<(&Ocean, &GlobalTransform), (Without<Player>, Without<BoatLayer>)>,
+    lands: Query<(&Land, &GlobalTransform), (Without<Player>, Without<BoatLayer>)>,
+    boat: Single<(&Boat, &Transform), (Without<Player>, Without<BoatLayer>)>,
+    boat_layer: Single<(&mut Layer, &mut Transform), (Without<Player>, With<BoatLayer>)>,
+    mut commands: Commands,
+) {
+    let (entity, mut transform, world_transform, active_sprite) = player_query.into_inner();
+    let (mut boat_layer, mut boat_layer_transform) = boat_layer.into_inner();
+
+    for (land, land_transform) in lands.iter() {
+        if world_transform.translation().x > land_transform.translation().x - land.size.x / 2.0
+            && world_transform.translation().x < land_transform.translation().x + land.size.x / 2.0
+        {
+            if let Some(active) = active_sprite {
+                if active.index != 0 {
+                    info!("Hit land");
+                    commands.trigger(SwitchSprite {
+                        entity: entity,
+                        index: 0,
+                    });
+                    boat_layer.speed = 1.0;
+                    boat_layer_transform.translation.x = -boat.1.translation.x;
+                    transform.translation.y = K_GROUND_LEVEL + 64.0;
+                }
+            }
+        }
+    }
+
+    for (ocean, ocean_transform) in oceans.iter() {
+        if world_transform.translation().x > ocean_transform.translation().x - ocean.size.x / 2.0
+            && world_transform.translation().x
+                < ocean_transform.translation().x + ocean.size.x / 2.0
+        {
+            if let Some(active) = active_sprite {
+                if active.index != 1 {
+                    info!("Hit ocean!");
+                    commands.trigger(SwitchSprite {
+                        entity: entity,
+                        index: 1,
+                    });
+                    boat_layer.speed = 0.0;
+                    boat_layer_transform.translation.x = -boat.1.translation.x;
+                    transform.translation.y = K_GROUND_LEVEL + 40.0;
+                }
+            }
+        }
     }
 }
 
@@ -113,7 +178,7 @@ pub fn layer_update(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     player: Single<(&mut Direction, &mut Sprite, &mut AnimationConfig), With<Player>>,
-    mut layers: Query<(&mut Transform, &Layer), Without<Player>>,
+    mut layers: Query<(&mut Transform, &Layer)>,
 ) {
     let mut mov = 0.0;
     let (mut direction, mut sprite, mut animation) = player.into_inner();
@@ -154,11 +219,9 @@ pub fn layer_update(
     }
 
     for (mut transform, layer) in layers.iter_mut() {
-        if layer.depth <= 0.0 || layer.depth >= 1.0 {
-            transform.translation.x += mov * K_SPEED * layer.speed * time.delta_secs();
-            if mov != 0.0 {
-                debug!("Layer transform: {:?}", transform.translation);
-            }
+        transform.translation.x += mov * K_SPEED * layer.speed * time.delta_secs();
+        if mov != 0.0 {
+            debug!("Layer transform: {:?}", transform.translation);
         }
     }
 }

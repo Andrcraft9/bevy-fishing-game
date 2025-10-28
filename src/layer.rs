@@ -1,6 +1,7 @@
 use std::time::Duration;
 
-use crate::components::{self, AnimationConfig};
+use crate::components::{self, ActiveSprite, AnimationConfig, Direction, SpriteCollection};
+use crate::events::SwitchSprite;
 use bevy::prelude::*;
 
 /// Layer System
@@ -17,12 +18,12 @@ pub struct SpriteDesc {
     pub mode: SpriteImageMode,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct SpriteAtlasDesc {
-    pub path: String,
+    pub sprite: SpriteDesc,
     pub splat: u32,
-    pub cols: u32,
     pub rows: u32,
+    pub cols: u32,
     pub index: usize,
 }
 
@@ -31,6 +32,7 @@ pub enum ObjectType {
     Primitive(PrimitiveType),
     Sprite(SpriteDesc),
     SpriteAtlas(SpriteAtlasDesc),
+    SpriteCollection(Vec<SpriteAtlasDesc>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -54,7 +56,16 @@ pub struct LayerObjectDesc {
     pub name: String,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum LayerType {
+    Player,
+    Boat,
+    City,
+    Sky,
+}
+
 pub struct LayerDesc {
+    pub t: LayerType,
     pub objects: Vec<LayerObjectDesc>,
     pub depth: f32,
     pub speed: f32,
@@ -62,7 +73,75 @@ pub struct LayerDesc {
     pub name: String,
 }
 
+pub fn on_switch_sprite(
+    switch_sprite: On<SwitchSprite>,
+    query: Query<(&SpriteCollection, Option<&Direction>)>,
+    mut commands: Commands,
+) {
+    if let Ok(mut entity) = commands.get_entity(switch_sprite.entity) {
+        info!("On SwitchSprite!");
+        if let Ok((collection, dir)) = query.get(switch_sprite.entity) {
+            entity.remove::<Sprite>();
+            entity.remove::<AnimationConfig>();
+            entity.remove::<ActiveSprite>();
+
+            let mut sprite = collection.sprites[switch_sprite.index].clone();
+            if let Some(dir) = dir {
+                match dir {
+                    Direction::Left => {
+                        sprite.flip_x = true;
+                    }
+                    Direction::Right => {
+                        sprite.flip_x = false;
+                    }
+                }
+            }
+            entity.insert(sprite);
+            entity.insert(collection.animations[switch_sprite.index].clone());
+            entity.insert(ActiveSprite {
+                index: switch_sprite.index,
+            });
+        }
+    }
+}
+
 impl LayerDesc {
+    fn create_sprite_atlas_entity(
+        asset_server: &Res<AssetServer>,
+        texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
+        atlas: &SpriteAtlasDesc,
+        size: Vec2,
+    ) -> (Sprite, AnimationConfig) {
+        let texture = asset_server.load(atlas.sprite.path.clone());
+        let layout = TextureAtlasLayout::from_grid(
+            UVec2::splat(atlas.splat),
+            atlas.cols,
+            atlas.rows,
+            None,
+            None,
+        );
+        let texture_atlas_layout = texture_atlas_layouts.add(layout);
+
+        let sprite = Sprite {
+            image: texture,
+            texture_atlas: Some(TextureAtlas {
+                layout: texture_atlas_layout,
+                index: atlas.index,
+            }),
+            custom_size: Some(Vec2::new(size.x, size.y)),
+            image_mode: atlas.sprite.mode.clone(),
+            ..default()
+        };
+
+        let animation_config = AnimationConfig {
+            first_index: atlas.index,
+            last_index: std::cmp::max(atlas.cols - 1, atlas.rows - 1) as usize,
+            timer: Timer::new(Duration::from_secs(0), TimerMode::Once),
+        };
+
+        (sprite, animation_config)
+    }
+
     pub fn build(
         &self,
         commands: &mut Commands,
@@ -71,17 +150,22 @@ impl LayerDesc {
         texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
         materials: &mut ResMut<Assets<ColorMaterial>>,
     ) {
-        let layer_entity = commands
-            .spawn((
-                Transform::from_xyz(0.0, 0.0, self.depth),
-                Name::new(self.name.clone()),
-                components::Layer {
-                    depth: self.depth,
-                    speed: self.speed,
-                    size: self.size,
-                },
-            ))
-            .id();
+        let mut layer_entity = commands.spawn((
+            Transform::from_xyz(0.0, 0.0, self.depth),
+            Name::new(self.name.clone()),
+            components::Layer {
+                depth: self.depth,
+                speed: self.speed,
+                size: self.size,
+            },
+        ));
+
+        let layer_entity = match self.t {
+            LayerType::Player => layer_entity.insert(components::PlayerLayer).id(),
+            LayerType::Boat => layer_entity.insert(components::BoatLayer).id(),
+            LayerType::City => layer_entity.insert(components::CityLayer).id(),
+            LayerType::Sky => layer_entity.insert(components::SkyLayer).id(),
+        };
 
         for obj in &self.objects {
             let entity_id = match &obj.t {
@@ -122,37 +206,55 @@ impl LayerDesc {
                         ))
                         .id()
                 }
-                ObjectType::SpriteAtlas(sprite) => {
-                    let texture = asset_server.load(sprite.path.clone());
-                    let layout = TextureAtlasLayout::from_grid(
-                        UVec2::splat(sprite.splat),
-                        sprite.cols,
-                        sprite.rows,
-                        None,
-                        None,
+                ObjectType::SpriteAtlas(atlas) => {
+                    let (sprite, animation_config) = Self::create_sprite_atlas_entity(
+                        asset_server,
+                        texture_atlas_layouts,
+                        atlas,
+                        obj.size,
                     );
-                    let texture_atlas_layout = texture_atlas_layouts.add(layout);
-                    commands
-                        .spawn((
-                            Sprite {
-                                image: texture.clone(),
-                                texture_atlas: Some(TextureAtlas {
-                                    layout: texture_atlas_layout.clone(),
-                                    index: sprite.index,
-                                }),
-                                custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
-                                ..default()
-                            },
-                            AnimationConfig {
-                                first_index: sprite.index,
-                                last_index: std::cmp::max(sprite.cols - 1, sprite.rows - 1)
-                                    as usize,
-                                timer: Timer::new(Duration::from_secs(0), TimerMode::Once),
-                            },
-                            Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
-                            Name::new(obj.name.clone()),
-                        ))
-                        .id()
+
+                    let entity = commands.spawn((
+                        sprite,
+                        animation_config,
+                        Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                        Name::new(obj.name.clone()),
+                    ));
+
+                    entity.id()
+                }
+                ObjectType::SpriteCollection(collection) => {
+                    let mut entity = commands.spawn((
+                        Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
+                        Name::new(obj.name.clone()),
+                    ));
+
+                    let mut sprite_collection = SpriteCollection {
+                        sprites: Vec::new(),
+                        animations: Vec::new(),
+                    };
+                    for atlas in collection {
+                        let (sprite, animation_config) = Self::create_sprite_atlas_entity(
+                            asset_server,
+                            texture_atlas_layouts,
+                            atlas,
+                            obj.size,
+                        );
+
+                        sprite_collection.sprites.push(sprite);
+                        sprite_collection.animations.push(animation_config);
+                    }
+
+                    // Active sprite is always the first one
+                    entity.insert(sprite_collection.sprites[0].clone());
+                    entity.insert(sprite_collection.animations[0].clone());
+                    entity.insert(ActiveSprite { index: 0 });
+
+                    entity.insert(sprite_collection);
+
+                    entity.observe(on_switch_sprite);
+
+                    entity.id()
                 }
             };
 
@@ -171,14 +273,19 @@ impl LayerDesc {
                     commands.entity(entity_id).insert(components::Boat);
                 }
                 ObjectComponentType::Land => {
-                    commands.entity(entity_id).insert(components::Land);
+                    commands.entity(entity_id).insert(components::Land {
+                        size: obj.size.clone(),
+                    });
                 }
                 ObjectComponentType::Ocean => {
-                    commands.entity(entity_id).insert(components::Ocean).insert(
-                        components::ActionRange {
+                    commands
+                        .entity(entity_id)
+                        .insert(components::Ocean {
+                            size: obj.size.clone(),
+                        })
+                        .insert(components::ActionRange {
                             range: obj.size.x / 2.0,
-                        },
-                    );
+                        });
                 }
                 ObjectComponentType::Building => {
                     commands

@@ -41,6 +41,10 @@ fn main() {
             Update,
             systems::game_player_action.run_if(in_state(GameState::InGame)),
         )
+        .add_systems(
+            Update,
+            systems::game_player_boat.run_if(in_state(GameState::InGame)),
+        )
         .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
         .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)
         .run();
@@ -71,7 +75,7 @@ fn setup(
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Land,
-                position: Vec2::new(512.0 - 2024.0, K_GROUND_LEVEL - 32.0),
+                position: Vec2::new(512.0 - 2048.0, K_GROUND_LEVEL - 32.0),
                 size: Vec2::new(4096.0, 64.0),
                 color: Color::srgb_u8(60, 128, 60),
                 name: "Land".to_string(),
@@ -79,12 +83,13 @@ fn setup(
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean,
-                position: Vec2::new(512.0 + 2024.0, K_GROUND_LEVEL - 32.0),
+                position: Vec2::new(512.0 + 2048.0, K_GROUND_LEVEL - 32.0),
                 size: Vec2::new(4096.0, 64.0),
                 color: Color::srgb_u8(85, 128, 200),
                 name: "Ocean".to_string(),
             },
         ],
+        t: LayerType::City,
         depth: 0.0,
         speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
@@ -100,6 +105,7 @@ fn setup(
             color: Color::srgb(1.0, 1.0, 0.0),
             name: "Sun".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -9.0,
         speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
@@ -115,6 +121,7 @@ fn setup(
             color: Color::srgb_u8(0, 180, 250),
             name: "Sky".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -10.0,
         speed: 0.0,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -137,6 +144,7 @@ fn setup(
             color: Color::srgb_u8(0, 180, 0),
             name: "Mountain".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -8.0,
         speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -154,11 +162,12 @@ fn setup(
                 },
             }),
             component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            position: Vec2::new(0.0, 0.0),
             size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
             color: Color::srgb_u8(0, 180, 0),
             name: "Clouds-1".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -5.0,
         speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -176,11 +185,12 @@ fn setup(
                 },
             }),
             component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            position: Vec2::new(0.0, 0.0),
             size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
             color: Color::srgb_u8(0, 180, 0),
             name: "Clouds-2".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -6.0,
         speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -198,11 +208,12 @@ fn setup(
                 },
             }),
             component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, K_GROUND_LEVEL + K_HEIGHT / 2.0),
+            position: Vec2::new(0.0, 0.0),
             size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
             color: Color::srgb_u8(0, 180, 0),
             name: "Clouds-3".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -7.0,
         speed: 0.15,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -225,6 +236,7 @@ fn setup(
             color: Color::srgb_u8(0, 180, 0),
             name: "Forest".to_string(),
         }],
+        t: LayerType::Sky,
         depth: -4.0,
         speed: 0.5,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
@@ -233,23 +245,39 @@ fn setup(
 
     let layer_play = LayerDesc {
         objects: vec![LayerObjectDesc {
-            t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
-                path: "player/walk.png".to_string(),
-                splat: 48,
-                cols: 6,
-                rows: 1,
-                index: 0,
-            }),
+            t: ObjectType::SpriteCollection(vec![
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/walk.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 6,
+                    rows: 1,
+                    index: 0,
+                },
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/row.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 4,
+                    rows: 1,
+                    index: 0,
+                },
+            ]),
             component: ObjectComponentType::Player,
             position: Vec2::new(0.0, K_GROUND_LEVEL + 64.0),
             size: Vec2::new(128.0, 128.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Player".to_string(),
         }],
+        t: LayerType::Player,
         depth: 0.5,
-        speed: 1.0,
+        speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
-        name: "Play".to_string(),
+        name: "Player".to_string(),
     };
 
     let layer_boat = LayerDesc {
@@ -264,7 +292,8 @@ fn setup(
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Boat".to_string(),
         }],
-        depth: 1.0,
+        t: LayerType::Boat,
+        depth: 0.45,
         speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Boat".to_string(),
