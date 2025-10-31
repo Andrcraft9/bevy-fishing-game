@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, ActiveSprite, AnimationConfig, Boat, BoatLayer, Building, Direction, Land,
-        Layer, Ocean, Player, PlayerLayer, PlayerMenu, SpriteCollection, Sun,
+        ActionRange, AnimationConfig, Boat, Building, Direction, Land, Layer, Ocean, OnControl,
+        OnLand, OnOcean, Player, PlayerMenu, Sun,
     },
     constants::{K_GROUND_LEVEL, K_HEIGHT, K_SPEED, K_WIDTH},
     events::{Action, SwitchSprite},
@@ -115,113 +115,161 @@ pub fn game_player_action(
     }
 }
 
-pub fn game_player_boat(
-    player_query: Single<
-        (
-            Entity,
-            &mut Transform,
-            &GlobalTransform,
-            Option<&ActiveSprite>,
-        ),
-        (With<Player>, Without<BoatLayer>),
-    >,
-    oceans: Query<(&Ocean, &GlobalTransform), (Without<Player>, Without<BoatLayer>)>,
-    lands: Query<(&Land, &GlobalTransform), (Without<Player>, Without<BoatLayer>)>,
-    boat: Single<(&Boat, &Transform), (Without<Player>, Without<BoatLayer>)>,
-    boat_layer: Single<(&mut Layer, &mut Transform), (Without<Player>, With<BoatLayer>)>,
+pub fn player_on_ocean(
+    player: Single<(Entity, &mut Transform), (With<Player>, Added<OnOcean>)>,
+    boat: Single<Entity, With<Boat>>,
     mut commands: Commands,
 ) {
-    let (entity, mut transform, world_transform, active_sprite) = player_query.into_inner();
-    let (mut boat_layer, mut boat_layer_transform) = boat_layer.into_inner();
+    let (entity, mut transform) = player.into_inner();
+    commands.trigger(SwitchSprite {
+        entity: entity,
+        index: 1,
+    });
 
-    for (land, land_transform) in lands.iter() {
-        if world_transform.translation().x > land_transform.translation().x - land.size.x / 2.0
-            && world_transform.translation().x < land_transform.translation().x + land.size.x / 2.0
-        {
-            if let Some(active) = active_sprite {
-                if active.index != 0 {
-                    info!("Hit land");
-                    commands.trigger(SwitchSprite {
-                        entity: entity,
-                        index: 0,
-                    });
-                    boat_layer.speed = 1.0;
-                    boat_layer_transform.translation.x = -boat.1.translation.x;
-                    transform.translation.y = K_GROUND_LEVEL + 64.0;
-                }
+    // TODO: Abstract away from the system.
+    info!("Sit!");
+    transform.translation.y = K_GROUND_LEVEL + 40.0;
+
+    // TODO: Abstract away from the system.
+    commands.entity(boat.entity()).insert(OnControl);
+}
+
+pub fn player_on_land(
+    player: Single<(Entity, &mut Transform), (With<Player>, Added<OnLand>)>,
+    boat: Single<(Entity, &mut Transform), (Without<Player>, With<Boat>)>,
+    mut commands: Commands,
+) {
+    let (entity, mut transform) = player.into_inner();
+    commands.trigger(SwitchSprite {
+        entity: entity,
+        index: 0,
+    });
+
+    // TODO: Abstract away from the system.
+    info!("Stand!");
+    transform.translation.y = K_GROUND_LEVEL + 64.0;
+
+    // TODO: Abstract away from the system.
+    let (boat_entity, mut boat_transform) = boat.into_inner();
+    commands.entity(boat_entity).remove::<OnControl>();
+
+    // TODO: Fix.
+    boat_transform.translation.x = 512.0;
+}
+
+pub fn player_on_land_ocean(
+    player: Single<(Entity, &GlobalTransform, Option<&OnLand>, Option<&OnOcean>), With<Player>>,
+    oceans: Query<(&Ocean, &GlobalTransform)>,
+    lands: Query<(&Land, &GlobalTransform)>,
+    mut commands: Commands,
+) {
+    let (entity, transform, on_land, on_ocean) = player.into_inner();
+
+    if let Some(_) = on_ocean {
+        for (land, land_transform) in lands.iter() {
+            if transform.translation().x > land_transform.translation().x - land.size.x / 2.0
+                && transform.translation().x < land_transform.translation().x + land.size.x / 2.0
+            {
+                info!("Hit land!");
+                commands.entity(entity).remove::<OnOcean>();
+                commands.entity(entity).insert(OnLand);
             }
+            break;
         }
     }
 
-    for (ocean, ocean_transform) in oceans.iter() {
-        if world_transform.translation().x > ocean_transform.translation().x - ocean.size.x / 2.0
-            && world_transform.translation().x
-                < ocean_transform.translation().x + ocean.size.x / 2.0
-        {
-            if let Some(active) = active_sprite {
-                if active.index != 1 {
-                    info!("Hit ocean!");
-                    commands.trigger(SwitchSprite {
-                        entity: entity,
-                        index: 1,
-                    });
-                    boat_layer.speed = 0.0;
-                    boat_layer_transform.translation.x = -boat.1.translation.x;
-                    transform.translation.y = K_GROUND_LEVEL + 40.0;
-                }
+    if let Some(_) = on_land {
+        for (ocean, ocean_transform) in oceans.iter() {
+            if transform.translation().x > ocean_transform.translation().x - ocean.size.x / 2.0
+                && transform.translation().x < ocean_transform.translation().x + ocean.size.x / 2.0
+            {
+                info!("Hit ocean!");
+                commands.entity(entity).remove::<OnLand>();
+                commands.entity(entity).insert(OnOcean);
+                break;
             }
         }
     }
 }
 
-pub fn layer_update(
+pub fn changed_direction(sprites: Query<(&mut Sprite, &Direction), Changed<Direction>>) {
+    for (mut sprite, direction) in sprites.into_iter() {
+        if *direction == Direction::Left {
+            sprite.flip_x = true;
+        } else {
+            sprite.flip_x = false;
+        }
+    }
+}
+
+// TODO: Abstract animation updates away from the movement system.
+// TODO: Don't rely on Sprite and AnimationConfig here.
+pub fn movement_control(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    player: Single<(&mut Direction, &mut Sprite, &mut AnimationConfig), With<Player>>,
-    mut layers: Query<(&mut Transform, &Layer)>,
+    objects: Query<
+        (
+            &mut Transform,
+            Option<&mut Direction>,
+            Option<&mut Sprite>,
+            Option<&mut AnimationConfig>,
+        ),
+        With<OnControl>,
+    >,
+    layers: Query<(&mut Transform, &Layer), Without<OnControl>>,
 ) {
     let mut mov = 0.0;
-    let (mut direction, mut sprite, mut animation) = player.into_inner();
     if keyboard_input.pressed(KeyCode::KeyA) {
         mov += 1.0;
-        if *direction != Direction::Left {
-            *direction = Direction::Left;
-            sprite.flip_x = true;
-        }
     }
 
     if keyboard_input.pressed(KeyCode::KeyD) {
         mov -= 1.0;
-        if *direction != Direction::Right {
-            *direction = Direction::Right;
-            sprite.flip_x = false;
-        }
     }
 
-    if mov != 0.0 {
-        if animation.timer.is_finished() {
-            animation.timer = Timer::new(Duration::from_millis(100), TimerMode::Once);
-            if let Some(atlas) = &mut sprite.texture_atlas {
-                if atlas.index >= animation.last_index {
-                    atlas.index = animation.first_index
+    for (mut transform, direction, sprite, animation) in objects.into_iter() {
+        if let (Some(mut animation), Some(mut sprite)) = (animation, sprite) {
+            if mov != 0.0 {
+                if animation.timer.is_finished() {
+                    animation.timer = Timer::new(Duration::from_millis(100), TimerMode::Once);
+                    if let Some(atlas) = &mut sprite.texture_atlas {
+                        if atlas.index >= animation.last_index {
+                            atlas.index = animation.first_index
+                        } else {
+                            atlas.index += 1;
+                        }
+                    }
                 } else {
-                    atlas.index += 1;
+                    animation.timer.tick(time.delta());
+                }
+            } else {
+                animation.timer.finish();
+                if let Some(atlas) = &mut sprite.texture_atlas {
+                    atlas.index = animation.first_index
                 }
             }
-        } else {
-            animation.timer.tick(time.delta());
         }
-    } else {
-        animation.timer.finish();
-        if let Some(atlas) = &mut sprite.texture_atlas {
-            atlas.index = animation.first_index
+
+        if mov != 0.0 {
+            transform.translation.x -= mov * K_SPEED * time.delta_secs();
+            if let Some(mut direction) = direction {
+                let new_direction = if mov > 0.0 {
+                    Direction::Left
+                } else {
+                    Direction::Right
+                };
+                if *direction != new_direction {
+                    *direction = new_direction;
+                }
+            }
+            info!("OnControl transform: {:?}", transform.translation);
         }
     }
 
-    for (mut transform, layer) in layers.iter_mut() {
-        transform.translation.x += mov * K_SPEED * layer.speed * time.delta_secs();
+    for (mut transform, layer) in layers.into_iter() {
         if mov != 0.0 {
-            debug!("Layer transform: {:?}", transform.translation);
+            transform.translation.x -= mov * K_SPEED * layer.speed * time.delta_secs();
+            info!("Layer transform: {:?}", transform.translation);
         }
     }
 }

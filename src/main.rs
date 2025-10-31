@@ -14,6 +14,8 @@ use constants::*;
 use layer::*;
 use states::*;
 
+use crate::components::OnControl;
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -31,10 +33,6 @@ fn main() {
         .add_systems(Update, systems::global_action)
         .add_systems(
             Update,
-            systems::layer_update.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
             systems::sun_update.run_if(in_state(GameState::InGame)),
         )
         .add_systems(
@@ -43,7 +41,23 @@ fn main() {
         )
         .add_systems(
             Update,
-            systems::game_player_boat.run_if(in_state(GameState::InGame)),
+            systems::player_on_land_ocean.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::player_on_land.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::player_on_ocean.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::changed_direction.run_if(in_state(GameState::InGame)),
+        )
+        .add_systems(
+            Update,
+            systems::movement_control.run_if(in_state(GameState::InGame)),
         )
         .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
         .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)
@@ -57,7 +71,7 @@ fn setup(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2d);
+    commands.spawn(Camera2d).insert(OnControl);
 
     let layer_city = LayerDesc {
         objects: vec![
@@ -91,7 +105,7 @@ fn setup(
         ],
         t: LayerType::City,
         depth: 0.0,
-        speed: 1.0,
+        speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "City".to_string(),
     };
@@ -107,7 +121,7 @@ fn setup(
         }],
         t: LayerType::Sky,
         depth: -9.0,
-        speed: 0.0,
+        speed: 1.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Sun".to_string(),
     };
@@ -146,76 +160,62 @@ fn setup(
         }],
         t: LayerType::Sky,
         depth: -8.0,
-        speed: 0.15,
+        speed: 0.75,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Mountain".to_string(),
     };
 
-    let layer_clouds1 = LayerDesc {
-        objects: vec![LayerObjectDesc {
-            t: ObjectType::Sprite(SpriteDesc {
-                path: "sky/clouds_mg_1.png".to_string(),
-                mode: SpriteImageMode::Tiled {
-                    tile_x: true,
-                    tile_y: false,
-                    stretch_value: 3.0,
-                },
-            }),
-            component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, 0.0),
-            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-            color: Color::srgb_u8(0, 180, 0),
-            name: "Clouds-1".to_string(),
-        }],
+    let layer_clouds = LayerDesc {
+        objects: vec![
+            LayerObjectDesc {
+                t: ObjectType::Sprite(SpriteDesc {
+                    path: "sky/clouds_mg_3.png".to_string(),
+                    mode: SpriteImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: false,
+                        stretch_value: 3.0,
+                    },
+                }),
+                component: ObjectComponentType::Sky,
+                position: Vec2::new(0.0, 0.0),
+                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb_u8(0, 180, 0),
+                name: "Clouds-3".to_string(),
+            },
+            LayerObjectDesc {
+                t: ObjectType::Sprite(SpriteDesc {
+                    path: "sky/clouds_mg_2.png".to_string(),
+                    mode: SpriteImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: false,
+                        stretch_value: 3.0,
+                    },
+                }),
+                component: ObjectComponentType::Sky,
+                position: Vec2::new(0.0, 0.0),
+                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb_u8(0, 180, 0),
+                name: "Clouds-2".to_string(),
+            },
+            LayerObjectDesc {
+                t: ObjectType::Sprite(SpriteDesc {
+                    path: "sky/clouds_mg_1.png".to_string(),
+                    mode: SpriteImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: false,
+                        stretch_value: 2.0,
+                    },
+                }),
+                component: ObjectComponentType::Sky,
+                position: Vec2::new(0.0, 0.0),
+                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb_u8(0, 180, 0),
+                name: "Clouds-1".to_string(),
+            },
+        ],
         t: LayerType::Sky,
         depth: -5.0,
-        speed: 0.15,
-        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-        name: "Clouds".to_string(),
-    };
-
-    let layer_clouds2 = LayerDesc {
-        objects: vec![LayerObjectDesc {
-            t: ObjectType::Sprite(SpriteDesc {
-                path: "sky/clouds_mg_2.png".to_string(),
-                mode: SpriteImageMode::Tiled {
-                    tile_x: true,
-                    tile_y: false,
-                    stretch_value: 3.0,
-                },
-            }),
-            component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, 0.0),
-            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-            color: Color::srgb_u8(0, 180, 0),
-            name: "Clouds-2".to_string(),
-        }],
-        t: LayerType::Sky,
-        depth: -6.0,
-        speed: 0.15,
-        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-        name: "Clouds".to_string(),
-    };
-
-    let layer_clouds3 = LayerDesc {
-        objects: vec![LayerObjectDesc {
-            t: ObjectType::Sprite(SpriteDesc {
-                path: "sky/clouds_mg_3.png".to_string(),
-                mode: SpriteImageMode::Tiled {
-                    tile_x: true,
-                    tile_y: false,
-                    stretch_value: 2.0,
-                },
-            }),
-            component: ObjectComponentType::Sky,
-            position: Vec2::new(0.0, 0.0),
-            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-            color: Color::srgb_u8(0, 180, 0),
-            name: "Clouds-3".to_string(),
-        }],
-        t: LayerType::Sky,
-        depth: -7.0,
-        speed: 0.15,
+        speed: 0.75,
         size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
         name: "Clouds".to_string(),
     };
@@ -294,7 +294,7 @@ fn setup(
         }],
         t: LayerType::Boat,
         depth: 0.45,
-        speed: 1.0,
+        speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Boat".to_string(),
     };
@@ -327,21 +327,7 @@ fn setup(
         &mut texture_atlas_layouts,
         &mut materials,
     );
-    layer_clouds3.build(
-        &mut commands,
-        &asset_server,
-        &mut meshes,
-        &mut texture_atlas_layouts,
-        &mut materials,
-    );
-    layer_clouds2.build(
-        &mut commands,
-        &asset_server,
-        &mut meshes,
-        &mut texture_atlas_layouts,
-        &mut materials,
-    );
-    layer_clouds1.build(
+    layer_clouds.build(
         &mut commands,
         &asset_server,
         &mut meshes,

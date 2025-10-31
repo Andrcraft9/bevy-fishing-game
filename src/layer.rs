@@ -267,7 +267,9 @@ impl LayerDesc {
                             money: 0.0,
                             items: Vec::new(),
                         })
-                        .insert(components::Direction::Right);
+                        .insert(components::Direction::Right)
+                        .insert(components::OnLand)
+                        .insert(components::OnControl);
                 }
                 ObjectComponentType::Boat => {
                     commands.entity(entity_id).insert(components::Boat);
