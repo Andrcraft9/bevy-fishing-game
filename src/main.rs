@@ -29,9 +29,10 @@ fn main() {
         .insert_resource(Time::<Virtual>::from_max_delta(Duration::from_secs(1)))
         .init_state::<GameState>()
         .add_observer(systems::on_action)
+        .add_observer(systems::on_end_action)
+        .add_observer(systems::on_catch)
         .add_systems(Startup, setup)
-        .add_systems(Update, systems::global_action)
-        // In-game update stage, arbitrary unordered systems.
+        // In-action update stage, arbitrary unordered systems.
         .add_systems(
             Update,
             (
@@ -39,8 +40,32 @@ fn main() {
                 systems::cloud_update,
                 systems::changed_active_sprite,
                 systems::player_on_land_ocean,
-                systems::player_on_land,
-                systems::player_on_ocean,
+                systems::changed_player_state,
+            )
+                .distributive_run_if(in_state(GameState::InAction)),
+        )
+        // In-action update stage, ordered systems related to control/movement.
+        .add_systems(
+            Update,
+            (
+                systems::game_player_action,
+                systems::time_control,
+                systems::changed_direction,
+                systems::animation_control,
+            )
+                .chain()
+                .run_if(in_state(GameState::InAction)),
+        )
+        // In-game update stage, arbitrary unordered systems.
+        .add_systems(
+            Update,
+            (
+                systems::global_action,
+                systems::sun_update,
+                systems::cloud_update,
+                systems::changed_active_sprite,
+                systems::player_on_land_ocean,
+                systems::changed_player_state,
             )
                 .distributive_run_if(in_state(GameState::InGame)),
         )
@@ -55,6 +80,11 @@ fn main() {
             )
                 .chain()
                 .run_if(in_state(GameState::InGame)),
+        )
+        // In-player-menu systems.
+        .add_systems(
+            Update,
+            systems::global_action.run_if(in_state(GameState::InPlayerMenu)),
         )
         .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
         .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)
@@ -78,8 +108,8 @@ fn setup(
                     ..default()
                 }),
                 component: ObjectComponentType::Building,
-                position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 79.0),
-                size: Vec2::new(384.0, 256.0),
+                position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 66.0),
+                size: Vec2::new(480.0, 320.0),
                 color: Color::srgb_u8(128, 128, 128),
                 name: "Hut".to_string(),
             },
@@ -263,6 +293,26 @@ fn setup(
                     rows: 1,
                     index: 0,
                 },
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/fish.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 4,
+                    rows: 1,
+                    index: 0,
+                },
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/idle.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 4,
+                    rows: 1,
+                    index: 0,
+                },
             ]),
             component: ObjectComponentType::Player,
             position: Vec2::new(0.0, K_GROUND_LEVEL + 64.0),
@@ -285,7 +335,7 @@ fn setup(
             }),
             component: ObjectComponentType::Boat,
             position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 16.0),
-            size: Vec2::new(128.0, 32.0),
+            size: Vec2::new(160.0, 40.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Boat".to_string(),
         }],

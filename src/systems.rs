@@ -3,11 +3,11 @@ use std::time::Duration;
 use crate::{
     components::{
         ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-        Direction, Land, Layer, Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu,
+        Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu, PlayerState,
         SpriteCollection, Sun,
     },
     constants::{K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SIT_OFFSET, K_SPEED, K_WIDTH},
-    events::Action,
+    events::{Action, Catch, EndAction},
     items::{self, Value, Weight},
     states::GameState,
 };
@@ -15,14 +15,45 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use rand::Rng;
 
+pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
+    info!("On Catch!");
+
+    // Random fishing logic
+    let mut rng = rand::thread_rng();
+    let chance: f32 = rng.gen_range(0.0..1.0);
+    if chance < 0.1 {
+        // 10% chance for golden fish
+        let weight = rng.gen_range(0.1..20.0);
+        player.items.push(items::Item::Fish(items::Fish {
+            t: items::FishType::Golden,
+            weight,
+        }));
+        info!("Caught a Golden fish! Weight: {:.2}", weight);
+    } else if chance < 0.5 {
+        // 40% chance for silver fish (0.1 to 0.5 range)
+        let weight = rng.gen_range(0.1..20.0);
+        player.items.push(items::Item::Fish(items::Fish {
+            t: items::FishType::Silver,
+            weight,
+        }));
+        info!("Caught a Silver fish! Weight: {:.2}", weight);
+    } else {
+        // 50% chance for nothing (0.5 to 1.0 range)
+        info!("Nothing caught this time...");
+    }
+}
+
 pub fn on_action(
     action: On<Action>,
-    mut player: Single<&mut Player>,
+    player: Single<(&mut Player, &mut PlayerState)>,
     oceans: Query<(&GlobalTransform, &Name, &ActionRange), With<Ocean>>,
     buildings: Query<(&GlobalTransform, &Name, &ActionRange), With<Building>>,
 ) {
+    let (mut player, mut state) = player.into_inner();
     let action_position = action.event().position;
+
     info!("On Action!");
+    *state = PlayerState::Idle;
 
     for (transform, name, action_range) in oceans.iter() {
         let distance = (action_position.x - transform.translation().x).abs();
@@ -31,30 +62,8 @@ pub fn on_action(
                 "Found ocean '{}' at distance {:.2} from action",
                 name, distance
             );
-            info!("Fishing...");
-            // Random fishing logic
-            let mut rng = rand::thread_rng();
-            let chance: f32 = rng.gen_range(0.0..1.0);
-            if chance < 0.1 {
-                // 10% chance for golden fish
-                let weight = rng.gen_range(0.1..20.0);
-                player.items.push(items::Item::Fish(items::Fish {
-                    t: items::FishType::Golden,
-                    weight,
-                }));
-                info!("Caught a Golden fish! Weight: {:.2}", weight);
-            } else if chance < 0.5 {
-                // 40% chance for silver fish (0.1 to 0.5 range)
-                let weight = rng.gen_range(0.1..20.0);
-                player.items.push(items::Item::Fish(items::Fish {
-                    t: items::FishType::Silver,
-                    weight,
-                }));
-                info!("Caught a Silver fish! Weight: {:.2}", weight);
-            } else {
-                // 50% chance for nothing (0.5 to 1.0 range)
-                info!("Nothing caught this time...");
-            }
+            *state = PlayerState::Fish;
+            return;
         }
     }
 
@@ -71,7 +80,20 @@ pub fn on_action(
                 info!("Sold item: {}", item.name());
                 player.money += item.value();
             }
+            return;
         }
+    }
+}
+
+pub fn on_end_action(_action: On<EndAction>, player: Single<(&mut Player, &mut PlayerState)>) {
+    let (_, mut state) = player.into_inner();
+
+    info!("On EndAction!");
+
+    if *state == PlayerState::Fish {
+        *state = PlayerState::Row;
+    } else {
+        *state = PlayerState::Walk;
     }
 }
 
@@ -81,6 +103,12 @@ pub fn global_action(
     state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    if keyboard_input.just_pressed(KeyCode::Tab) {
+        info!("Player menu!");
+        next_state.set(GameState::InPlayerMenu);
+        return;
+    }
+
     if keyboard_input.just_pressed(KeyCode::Escape) {
         if *state.get() != GameState::InGame {
             info!("Back in Game!");
@@ -89,6 +117,7 @@ pub fn global_action(
             info!("Quitting app!");
             app_exit_events.write(AppExit::Success);
         }
+        return;
     }
 }
 
@@ -98,21 +127,22 @@ pub fn game_player_action(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Tab) {
-        info!("Player menu!");
-        next_state.set(GameState::InPlayerMenu);
-        return;
-    }
-
     if keyboard_input.just_pressed(KeyCode::Space) {
-        info!("Action!");
+        info!("Trigger action!");
         commands.trigger(Action {
             position: Vec2::new(
                 player_transform.translation().x,
                 player_transform.translation().y,
             ),
         });
+        next_state.set(GameState::InAction);
         return;
+    }
+
+    if keyboard_input.just_released(KeyCode::Space) {
+        info!("End action!");
+        commands.trigger(EndAction);
+        next_state.set(GameState::InGame);
     }
 }
 
@@ -146,66 +176,91 @@ pub fn changed_active_sprite(
     }
 }
 
-pub fn player_on_ocean(
-    player: Single<(&mut ActiveSprite, &mut Transform), (With<Player>, Added<OnOcean>)>,
-    boat: Single<Entity, With<Boat>>,
+pub fn changed_player_state(
+    state: Single<&PlayerState, (With<Player>, Changed<PlayerState>)>,
+    mut set: ParamSet<(
+        Single<(Entity, &mut ActiveSprite, &mut Transform), With<Player>>,
+        Single<(Entity, &mut Transform), With<Boat>>,
+    )>,
     mut commands: Commands,
 ) {
-    let (mut active, mut transform) = player.into_inner();
-    info!("Sit and Row!");
-    active.index = 1;
-    transform.translation.y = K_GROUND_LEVEL + 64.0 + K_SIT_OFFSET;
-
-    info!("Take boat!");
-    commands.entity(boat.entity()).insert(OnControl);
-}
-
-pub fn player_on_land(
-    player: Single<(&mut ActiveSprite, &mut Transform), (With<Player>, Added<OnLand>)>,
-    boat: Single<(Entity, &mut Transform), (Without<Player>, With<Boat>)>,
-    mut commands: Commands,
-) {
-    let (mut active, mut transform) = player.into_inner();
-    info!("Stand and Walk!");
-    active.index = 0;
-    transform.translation.y = K_GROUND_LEVEL + 64.0;
-
-    info!("Leave boat!");
-    let (boat_entity, mut boat_transform) = boat.into_inner();
-    commands.entity(boat_entity).remove::<OnControl>();
-    boat_transform.translation.x = K_OCEAN_LAND_BORDER;
+    match *state {
+        PlayerState::Walk => {
+            {
+                let (_entity, mut active, mut transform) = set.p0().into_inner();
+                info!("Stand and Walk!");
+                active.index = 0;
+                transform.translation.y = K_GROUND_LEVEL + 64.0;
+                transform.translation.z = 0.0;
+            }
+            {
+                let (boat_entity, mut boat_transform) = set.p1().into_inner();
+                info!("Leave boat!");
+                commands.entity(boat_entity).remove::<OnControl>();
+                boat_transform.translation.x = K_OCEAN_LAND_BORDER;
+            }
+        }
+        PlayerState::Row => {
+            {
+                let (_entity, mut active, mut transform) = set.p0().into_inner();
+                info!("Sit and Row!");
+                active.index = 1;
+                transform.translation.y = K_GROUND_LEVEL + 64.0 + K_SIT_OFFSET;
+                transform.translation.z = 0.0;
+            }
+            {
+                let (boat_entity, _) = set.p1().into_inner();
+                info!("Take boat!");
+                commands.entity(boat_entity).insert(OnControl);
+            }
+        }
+        PlayerState::Fish => {
+            let (_entity, mut active, mut transform) = set.p0().into_inner();
+            info!("Fish!");
+            active.index = 2;
+            transform.translation.y = K_GROUND_LEVEL + 64.0;
+            transform.translation.z = -0.5;
+        }
+        PlayerState::Idle => {
+            let (_entity, mut active, mut transform) = set.p0().into_inner();
+            info!("Idle!");
+            active.index = 3;
+            transform.translation.y = K_GROUND_LEVEL + 64.0;
+            transform.translation.z = 0.0;
+        }
+        PlayerState::Catch => {
+            info!("Catch!");
+        }
+    }
 }
 
 pub fn player_on_land_ocean(
-    player: Single<(Entity, &GlobalTransform, Option<&OnLand>, Option<&OnOcean>), With<Player>>,
+    player: Single<(&GlobalTransform, &mut PlayerState), With<Player>>,
     oceans: Query<(&Ocean, &GlobalTransform)>,
     lands: Query<(&Land, &GlobalTransform)>,
-    mut commands: Commands,
 ) {
-    let (entity, transform, on_land, on_ocean) = player.into_inner();
+    let (transform, mut state) = player.into_inner();
 
-    if let Some(_) = on_ocean {
+    if *state == PlayerState::Row {
         for (land, land_transform) in lands.iter() {
             if transform.translation().x > land_transform.translation().x - land.size.x / 2.0
                 && transform.translation().x < land_transform.translation().x + land.size.x / 2.0
             {
                 info!("Hit land!");
-                commands.entity(entity).remove::<OnOcean>();
-                commands.entity(entity).insert(OnLand);
+                *state = PlayerState::Walk;
             }
-            break;
+            return;
         }
     }
 
-    if let Some(_) = on_land {
+    if *state == PlayerState::Walk {
         for (ocean, ocean_transform) in oceans.iter() {
             if transform.translation().x > ocean_transform.translation().x - ocean.size.x / 2.0
                 && transform.translation().x < ocean_transform.translation().x + ocean.size.x / 2.0
             {
                 info!("Hit ocean!");
-                commands.entity(entity).remove::<OnLand>();
-                commands.entity(entity).insert(OnOcean);
-                break;
+                *state = PlayerState::Row;
+                return;
             }
         }
     }
@@ -235,6 +290,13 @@ pub fn animation_control(animations: Query<(&mut AnimationTimer, &AnimationConfi
                 }
             }
         }
+    }
+}
+
+pub fn time_control(time: Res<Time>, animations: Query<&mut AnimationTimer, With<OnControl>>) {
+    for mut animation in animations.into_iter() {
+        animation.timer.tick(time.delta());
+        animation.reset = false;
     }
 }
 
@@ -277,14 +339,14 @@ pub fn movement_control(
                     *direction = new_direction;
                 }
             }
-            info!("OnControl transform: {:?}", transform.translation);
+            //info!("OnControl transform: {:?}", transform.translation);
         }
     }
 
     for (mut transform, layer) in layers.into_iter() {
         if mov != 0.0 {
             transform.translation.x -= mov * K_SPEED * layer.speed * time.delta_secs();
-            info!("Layer transform: {:?}", transform.translation);
+            //info!("Layer transform: {:?}", transform.translation);
         }
     }
 }

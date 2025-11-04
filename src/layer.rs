@@ -243,7 +243,7 @@ impl LayerDesc {
                             items: Vec::new(),
                         })
                         .insert(components::Direction::Right)
-                        .insert(components::OnLand)
+                        .insert(components::PlayerState::Walk)
                         .insert(components::OnControl);
                 }
                 ObjectComponentType::Boat => {

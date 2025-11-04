@@ -94,13 +94,13 @@ pub struct SkyLayer;
 pub struct PlayerMenu;
 
 #[derive(Component, Debug, Clone, PartialEq)]
-pub struct OnOcean;
-
-#[derive(Component, Debug, Clone, PartialEq)]
-pub struct OnLand;
-
-#[derive(Component, Debug, Clone, PartialEq)]
-pub struct OnMove;
-
-#[derive(Component, Debug, Clone, PartialEq)]
 pub struct OnControl;
+
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub enum PlayerState {
+    Idle,
+    Walk,
+    Row,
+    Fish,
+    Catch,
+}
