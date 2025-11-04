@@ -2,8 +2,9 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Direction,
-        Land, Layer, Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu, SpriteCollection, Sun,
+        ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
+        Direction, Land, Layer, Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu,
+        SpriteCollection, Sun,
     },
     constants::{K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SIT_OFFSET, K_SPEED, K_WIDTH},
     events::Action,
@@ -290,6 +291,13 @@ pub fn movement_control(
 
 pub fn sun_update(time: Res<Time<Virtual>>, mut sun_query: Single<&mut Transform, With<Sun>>) {
     sun_query.translation.y = (0.5 * time.elapsed_secs()).sin() * K_HEIGHT / 2.0;
+}
+
+pub fn cloud_update(time: Res<Time<Virtual>>, query: Query<(&Cloud, &mut Transform)>) {
+    for (cloud, mut transform) in query.into_iter() {
+        // TODO: Fix, remove hard-coded sprite size.
+        transform.translation.x = K_SPEED * cloud.speed * time.elapsed_secs() % (2.0 * 384.0);
+    }
 }
 
 pub fn enter_player_menu(

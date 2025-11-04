@@ -1,4 +1,6 @@
-use crate::components::{self, ActiveSprite, AnimationConfig, AnimationTimer, SpriteCollection};
+use crate::components::{
+    self, ActiveSprite, AnimationConfig, AnimationTimer, Cloud, SpriteCollection,
+};
 use bevy::prelude::*;
 
 /// Layer System
@@ -40,6 +42,7 @@ pub enum ObjectComponentType {
     Ocean,
     Building,
     Sun,
+    Cloud(Cloud),
     Sky,
 }
 
@@ -271,6 +274,9 @@ impl LayerDesc {
                 }
                 ObjectComponentType::Sun => {
                     commands.entity(entity_id).insert(components::Sun);
+                }
+                ObjectComponentType::Cloud(cloud) => {
+                    commands.entity(entity_id).insert(cloud.clone());
                 }
                 ObjectComponentType::Sky => {
                     commands.entity(entity_id).insert(components::Sky);

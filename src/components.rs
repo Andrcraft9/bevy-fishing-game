@@ -59,6 +59,11 @@ pub struct Building;
 pub struct Sun;
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct Cloud {
+    pub speed: f32,
+}
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct Sky;
 
 #[derive(Component, Debug, Clone, PartialEq)]
