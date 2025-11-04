@@ -1,6 +1,8 @@
 use std::time::Duration;
 
-use crate::components::{self, ActiveSprite, AnimationConfig, Direction, SpriteCollection};
+use crate::components::{
+    self, ActiveSprite, AnimationConfig, AnimationTimer, Direction, SpriteCollection,
+};
 use crate::events::SwitchSprite;
 use bevy::prelude::*;
 
@@ -136,7 +138,6 @@ impl LayerDesc {
         let animation_config = AnimationConfig {
             first_index: atlas.index,
             last_index: std::cmp::max(atlas.cols - 1, atlas.rows - 1) as usize,
-            timer: Timer::new(Duration::from_secs(0), TimerMode::Once),
         };
 
         (sprite, animation_config)
@@ -217,6 +218,11 @@ impl LayerDesc {
                     let entity = commands.spawn((
                         sprite,
                         animation_config,
+                        AnimationTimer {
+                            timer: Timer::default(),
+                            ms: 100,
+                            reset: true,
+                        },
                         Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                         Name::new(obj.name.clone()),
                     ));
@@ -248,6 +254,11 @@ impl LayerDesc {
                     // Active sprite is always the first one
                     entity.insert(sprite_collection.sprites[0].clone());
                     entity.insert(sprite_collection.animations[0].clone());
+                    entity.insert(AnimationTimer {
+                        timer: Timer::default(),
+                        ms: 100,
+                        reset: true,
+                    });
                     entity.insert(ActiveSprite { index: 0 });
 
                     entity.insert(sprite_collection);

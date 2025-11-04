@@ -4,10 +4,16 @@ use bevy::prelude::*;
 /// Component Types
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct AnimationTimer {
+    pub timer: Timer,
+    pub ms: u64,
+    pub reset: bool,
+}
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct AnimationConfig {
     pub first_index: usize,
     pub last_index: usize,
-    pub timer: Timer,
 }
 
 #[derive(Component, Debug, Clone)]

@@ -31,33 +31,28 @@ fn main() {
         .add_observer(systems::on_action)
         .add_systems(Startup, setup)
         .add_systems(Update, systems::global_action)
+        // In-game update stage, arbitrary unordered systems.
         .add_systems(
             Update,
-            systems::sun_update.run_if(in_state(GameState::InGame)),
+            (
+                systems::sun_update,
+                systems::player_on_land_ocean,
+                systems::player_on_land,
+                systems::player_on_ocean,
+            )
+                .distributive_run_if(in_state(GameState::InGame)),
         )
+        // In-game update stage, ordered systems related to control/movement.
         .add_systems(
             Update,
-            systems::game_player_action.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
-            systems::player_on_land_ocean.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
-            systems::player_on_land.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
-            systems::player_on_ocean.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
-            systems::changed_direction.run_if(in_state(GameState::InGame)),
-        )
-        .add_systems(
-            Update,
-            systems::movement_control.run_if(in_state(GameState::InGame)),
+            (
+                systems::game_player_action,
+                systems::movement_control,
+                systems::changed_direction,
+                systems::animation_control,
+            )
+                .chain()
+                .run_if(in_state(GameState::InGame)),
         )
         .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
         .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)

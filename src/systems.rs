@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, AnimationConfig, Boat, Building, Direction, Land, Layer, Ocean, OnControl,
-        OnLand, OnOcean, Player, PlayerMenu, Sun,
+        ActionRange, AnimationConfig, AnimationTimer, Boat, Building, Direction, Land, Layer,
+        Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu, Sun,
     },
     constants::{K_GROUND_LEVEL, K_HEIGHT, K_SPEED, K_WIDTH},
     events::{Action, SwitchSprite},
@@ -202,20 +202,28 @@ pub fn changed_direction(sprites: Query<(&mut Sprite, &Direction), Changed<Direc
     }
 }
 
-// TODO: Abstract animation updates away from the movement system.
-// TODO: Don't rely on Sprite and AnimationConfig here.
+pub fn animation_control(animations: Query<(&mut AnimationTimer, &AnimationConfig, &mut Sprite)>) {
+    for (mut animation, config, mut sprite) in animations.into_iter() {
+        if animation.timer.is_finished() {
+            animation.timer = Timer::new(Duration::from_millis(animation.ms), TimerMode::Once);
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                if animation.reset {
+                    atlas.index = config.first_index;
+                } else if atlas.index >= config.last_index {
+                    atlas.index = config.first_index;
+                } else {
+                    atlas.index += 1;
+                }
+            }
+        }
+    }
+}
+
 pub fn movement_control(
     time: Res<Time>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    objects: Query<
-        (
-            &mut Transform,
-            Option<&mut Direction>,
-            Option<&mut Sprite>,
-            Option<&mut AnimationConfig>,
-        ),
-        With<OnControl>,
-    >,
+    objects: Query<(&mut Transform, Option<&mut Direction>), With<OnControl>>,
+    animations: Query<&mut AnimationTimer, With<OnControl>>,
     layers: Query<(&mut Transform, &Layer), Without<OnControl>>,
 ) {
     let mut mov = 0.0;
@@ -227,30 +235,18 @@ pub fn movement_control(
         mov -= 1.0;
     }
 
-    for (mut transform, direction, sprite, animation) in objects.into_iter() {
-        if let (Some(mut animation), Some(mut sprite)) = (animation, sprite) {
-            if mov != 0.0 {
-                if animation.timer.is_finished() {
-                    animation.timer = Timer::new(Duration::from_millis(100), TimerMode::Once);
-                    if let Some(atlas) = &mut sprite.texture_atlas {
-                        if atlas.index >= animation.last_index {
-                            atlas.index = animation.first_index
-                        } else {
-                            atlas.index += 1;
-                        }
-                    }
-                } else {
-                    animation.timer.tick(time.delta());
-                }
-            } else {
-                animation.timer.finish();
-                if let Some(atlas) = &mut sprite.texture_atlas {
-                    atlas.index = animation.first_index
-                }
-            }
-        }
-
+    for mut animation in animations.into_iter() {
         if mov != 0.0 {
+            animation.timer.tick(time.delta());
+            animation.reset = false;
+        } else {
+            animation.timer.finish();
+            animation.reset = true;
+        }
+    }
+
+    if mov != 0.0 {
+        for (mut transform, direction) in objects.into_iter() {
             transform.translation.x -= mov * K_SPEED * time.delta_secs();
             if let Some(mut direction) = direction {
                 let new_direction = if mov > 0.0 {
