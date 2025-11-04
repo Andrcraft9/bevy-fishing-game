@@ -1,9 +1,4 @@
-use std::time::Duration;
-
-use crate::components::{
-    self, ActiveSprite, AnimationConfig, AnimationTimer, Direction, SpriteCollection,
-};
-use crate::events::SwitchSprite;
+use crate::components::{self, ActiveSprite, AnimationConfig, AnimationTimer, SpriteCollection};
 use bevy::prelude::*;
 
 /// Layer System
@@ -73,38 +68,6 @@ pub struct LayerDesc {
     pub speed: f32,
     pub size: Vec2,
     pub name: String,
-}
-
-pub fn on_switch_sprite(
-    switch_sprite: On<SwitchSprite>,
-    query: Query<(&SpriteCollection, Option<&Direction>)>,
-    mut commands: Commands,
-) {
-    if let Ok(mut entity) = commands.get_entity(switch_sprite.entity) {
-        info!("On SwitchSprite!");
-        if let Ok((collection, dir)) = query.get(switch_sprite.entity) {
-            entity.remove::<Sprite>();
-            entity.remove::<AnimationConfig>();
-            entity.remove::<ActiveSprite>();
-
-            let mut sprite = collection.sprites[switch_sprite.index].clone();
-            if let Some(dir) = dir {
-                match dir {
-                    Direction::Left => {
-                        sprite.flip_x = true;
-                    }
-                    Direction::Right => {
-                        sprite.flip_x = false;
-                    }
-                }
-            }
-            entity.insert(sprite);
-            entity.insert(collection.animations[switch_sprite.index].clone());
-            entity.insert(ActiveSprite {
-                index: switch_sprite.index,
-            });
-        }
-    }
 }
 
 impl LayerDesc {
@@ -262,8 +225,6 @@ impl LayerDesc {
                     entity.insert(ActiveSprite { index: 0 });
 
                     entity.insert(sprite_collection);
-
-                    entity.observe(on_switch_sprite);
 
                     entity.id()
                 }

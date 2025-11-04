@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, AnimationConfig, AnimationTimer, Boat, Building, Direction, Land, Layer,
-        Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu, Sun,
+        ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Direction,
+        Land, Layer, Ocean, OnControl, OnLand, OnOcean, Player, PlayerMenu, SpriteCollection, Sun,
     },
-    constants::{K_GROUND_LEVEL, K_HEIGHT, K_SPEED, K_WIDTH},
-    events::{Action, SwitchSprite},
+    constants::{K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SIT_OFFSET, K_SPEED, K_WIDTH},
+    events::Action,
     items::{self, Value, Weight},
     states::GameState,
 };
@@ -115,46 +115,64 @@ pub fn game_player_action(
     }
 }
 
+pub fn changed_active_sprite(
+    query: Query<
+        (Entity, &ActiveSprite, &SpriteCollection, Option<&Direction>),
+        Changed<ActiveSprite>,
+    >,
+    mut commands: Commands,
+) {
+    for (entity, active, collection, direction) in query {
+        commands.entity(entity).remove::<Sprite>();
+        commands.entity(entity).remove::<AnimationConfig>();
+
+        let mut sprite = collection.sprites[active.index].clone();
+        if let Some(direction) = direction {
+            match direction {
+                Direction::Left => {
+                    sprite.flip_x = true;
+                }
+                Direction::Right => {
+                    sprite.flip_x = false;
+                }
+            }
+        }
+
+        commands.entity(entity).insert(sprite);
+        commands
+            .entity(entity)
+            .insert(collection.animations[active.index].clone());
+    }
+}
+
 pub fn player_on_ocean(
-    player: Single<(Entity, &mut Transform), (With<Player>, Added<OnOcean>)>,
+    player: Single<(&mut ActiveSprite, &mut Transform), (With<Player>, Added<OnOcean>)>,
     boat: Single<Entity, With<Boat>>,
     mut commands: Commands,
 ) {
-    let (entity, mut transform) = player.into_inner();
-    commands.trigger(SwitchSprite {
-        entity: entity,
-        index: 1,
-    });
+    let (mut active, mut transform) = player.into_inner();
+    info!("Sit and Row!");
+    active.index = 1;
+    transform.translation.y = K_GROUND_LEVEL + 64.0 + K_SIT_OFFSET;
 
-    // TODO: Abstract away from the system.
-    info!("Sit!");
-    transform.translation.y = K_GROUND_LEVEL + 40.0;
-
-    // TODO: Abstract away from the system.
+    info!("Take boat!");
     commands.entity(boat.entity()).insert(OnControl);
 }
 
 pub fn player_on_land(
-    player: Single<(Entity, &mut Transform), (With<Player>, Added<OnLand>)>,
+    player: Single<(&mut ActiveSprite, &mut Transform), (With<Player>, Added<OnLand>)>,
     boat: Single<(Entity, &mut Transform), (Without<Player>, With<Boat>)>,
     mut commands: Commands,
 ) {
-    let (entity, mut transform) = player.into_inner();
-    commands.trigger(SwitchSprite {
-        entity: entity,
-        index: 0,
-    });
-
-    // TODO: Abstract away from the system.
-    info!("Stand!");
+    let (mut active, mut transform) = player.into_inner();
+    info!("Stand and Walk!");
+    active.index = 0;
     transform.translation.y = K_GROUND_LEVEL + 64.0;
 
-    // TODO: Abstract away from the system.
+    info!("Leave boat!");
     let (boat_entity, mut boat_transform) = boat.into_inner();
     commands.entity(boat_entity).remove::<OnControl>();
-
-    // TODO: Fix.
-    boat_transform.translation.x = 512.0;
+    boat_transform.translation.x = K_OCEAN_LAND_BORDER;
 }
 
 pub fn player_on_land_ocean(

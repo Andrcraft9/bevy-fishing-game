@@ -36,6 +36,7 @@ fn main() {
             Update,
             (
                 systems::sun_update,
+                systems::changed_active_sprite,
                 systems::player_on_land_ocean,
                 systems::player_on_land,
                 systems::player_on_ocean,
@@ -76,7 +77,7 @@ fn setup(
                     ..default()
                 }),
                 component: ObjectComponentType::Building,
-                position: Vec2::new(512.0, K_GROUND_LEVEL + 128.0 - 79.0),
+                position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 79.0),
                 size: Vec2::new(384.0, 256.0),
                 color: Color::srgb_u8(128, 128, 128),
                 name: "Hut".to_string(),
@@ -84,7 +85,7 @@ fn setup(
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Land,
-                position: Vec2::new(512.0 - 2048.0, K_GROUND_LEVEL - 32.0),
+                position: Vec2::new(K_OCEAN_LAND_BORDER - 2048.0, K_GROUND_LEVEL - 32.0),
                 size: Vec2::new(4096.0, 64.0),
                 color: Color::srgb_u8(60, 128, 60),
                 name: "Land".to_string(),
@@ -92,7 +93,7 @@ fn setup(
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean,
-                position: Vec2::new(512.0 + 2048.0, K_GROUND_LEVEL - 32.0),
+                position: Vec2::new(K_OCEAN_LAND_BORDER + 2048.0, K_GROUND_LEVEL - 32.0),
                 size: Vec2::new(4096.0, 64.0),
                 color: Color::srgb_u8(85, 128, 200),
                 name: "Ocean".to_string(),
@@ -282,7 +283,7 @@ fn setup(
                 ..default()
             }),
             component: ObjectComponentType::Boat,
-            position: Vec2::new(512.0, K_GROUND_LEVEL + 16.0),
+            position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 16.0),
             size: Vec2::new(128.0, 32.0),
             color: Color::srgb(1.0, 1.0, 1.0),
             name: "Boat".to_string(),
