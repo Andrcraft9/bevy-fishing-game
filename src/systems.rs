@@ -3,10 +3,13 @@ use std::time::Duration;
 use crate::{
     components::{
         ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-        Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu, PlayerState,
-        SpriteCollection, Sun,
+        DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu, PlayerState,
+        SpriteCollection, Sun, Velocity,
     },
-    constants::{K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SIT_OFFSET, K_SPEED, K_WIDTH},
+    constants::{
+        K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
+        K_WIDTH,
+    },
     events::{Action, Catch, EndAction},
     items::{self, Value, Weight},
     states::GameState,
@@ -15,14 +18,16 @@ use bevy::app::AppExit;
 use bevy::prelude::*;
 use rand::Rng;
 
+///
+/// Observers
+///
+
 pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
     info!("On Catch!");
 
-    // Random fishing logic
     let mut rng = rand::thread_rng();
     let chance: f32 = rng.gen_range(0.0..1.0);
     if chance < 0.1 {
-        // 10% chance for golden fish
         let weight = rng.gen_range(0.1..20.0);
         player.items.push(items::Item::Fish(items::Fish {
             t: items::FishType::Golden,
@@ -30,7 +35,6 @@ pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
         }));
         info!("Caught a Golden fish! Weight: {:.2}", weight);
     } else if chance < 0.5 {
-        // 40% chance for silver fish (0.1 to 0.5 range)
         let weight = rng.gen_range(0.1..20.0);
         player.items.push(items::Item::Fish(items::Fish {
             t: items::FishType::Silver,
@@ -38,7 +42,6 @@ pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
         }));
         info!("Caught a Silver fish! Weight: {:.2}", weight);
     } else {
-        // 50% chance for nothing (0.5 to 1.0 range)
         info!("Nothing caught this time...");
     }
 }
@@ -97,38 +100,52 @@ pub fn on_end_action(_action: On<EndAction>, player: Single<(&mut Player, &mut P
     }
 }
 
-pub fn global_action(
+///
+/// Input systems
+///
+
+pub fn menu_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut app_exit_events: MessageWriter<AppExit>,
-    state: Res<State<GameState>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    if keyboard_input.just_pressed(KeyCode::Escape) || keyboard_input.just_pressed(KeyCode::Tab) {
+        info!("Back in Game!");
+        next_state.set(GameState::InGame);
+        return;
+    }
+}
+
+pub fn game_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    player_transform: Single<&GlobalTransform, With<Player>>,
+    query: Query<(&mut Velocity, Option<&mut Direction>), With<OnControl>>,
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+    mut app_exit_events: MessageWriter<AppExit>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        info!("Quitting app!");
+        app_exit_events.write(AppExit::Success);
+        return;
+    }
+
     if keyboard_input.just_pressed(KeyCode::Tab) {
         info!("Player menu!");
         next_state.set(GameState::InPlayerMenu);
         return;
     }
 
-    if keyboard_input.just_pressed(KeyCode::Escape) {
-        if *state.get() != GameState::InGame {
-            info!("Back in Game!");
-            next_state.set(GameState::InGame);
-        } else {
-            info!("Quitting app!");
-            app_exit_events.write(AppExit::Success);
-        }
-        return;
+    let mut vel = 0.0;
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        vel += 1.0;
     }
-}
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        vel -= 1.0;
+    }
 
-pub fn game_player_action(
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_transform: Single<&GlobalTransform, With<Player>>,
-    mut commands: Commands,
-    mut next_state: ResMut<NextState<GameState>>,
-) {
     if keyboard_input.just_pressed(KeyCode::Space) {
-        info!("Trigger action!");
+        info!("Stay, trigger action!");
+        vel = 0.0;
         commands.trigger(Action {
             position: Vec2::new(
                 player_transform.translation().x,
@@ -136,15 +153,38 @@ pub fn game_player_action(
             ),
         });
         next_state.set(GameState::InAction);
-        return;
     }
 
+    for (mut velocity, direction) in query {
+        velocity.value = vel;
+        if vel != 0.0 {
+            if let Some(mut direction) = direction {
+                *direction = if vel > 0.0 {
+                    Direction::Left
+                } else {
+                    Direction::Right
+                };
+            }
+        }
+    }
+}
+
+pub fn action_input(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
     if keyboard_input.just_released(KeyCode::Space) {
         info!("End action!");
         commands.trigger(EndAction);
         next_state.set(GameState::InGame);
+        return;
     }
 }
+
+///
+/// Reaction systems
+///
 
 pub fn changed_active_sprite(
     query: Query<
@@ -217,9 +257,10 @@ pub fn changed_player_state(
         PlayerState::Fish => {
             let (_entity, mut active, mut transform) = set.p0().into_inner();
             info!("Fish!");
+            // TODO: Ideally, hard-coded values should be removed.
             active.index = 2;
             transform.translation.y = K_GROUND_LEVEL + 64.0;
-            transform.translation.z = -0.5;
+            transform.translation.z = -0.1;
         }
         PlayerState::Idle => {
             let (_entity, mut active, mut transform) = set.p0().into_inner();
@@ -234,12 +275,109 @@ pub fn changed_player_state(
     }
 }
 
-pub fn player_on_land_ocean(
-    player: Single<(&GlobalTransform, &mut PlayerState), With<Player>>,
+pub fn changed_direction(sprites: Query<(&mut Sprite, &Direction), Changed<Direction>>) {
+    for (mut sprite, direction) in sprites.into_iter() {
+        if *direction == Direction::Left {
+            sprite.flip_x = true;
+        } else {
+            sprite.flip_x = false;
+        }
+    }
+}
+
+///
+/// Update systems
+///
+
+pub fn animation(animations: Query<(&mut AnimationTimer, &mut Sprite, &AnimationConfig)>) {
+    for (mut animation, mut sprite, config) in animations.into_iter() {
+        if animation.timer.is_finished() {
+            animation.timer = Timer::new(Duration::from_millis(animation.ms), TimerMode::Once);
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                if animation.reset {
+                    atlas.index = config.first_index;
+                } else if atlas.index >= config.last_index {
+                    atlas.index = config.first_index;
+                } else {
+                    atlas.index += 1;
+                }
+            }
+        }
+    }
+}
+
+pub fn move_control(
+    time: Res<Time<Virtual>>,
+    query: Query<(&mut Transform, &Velocity), With<OnControl>>,
+) {
+    for (mut transform, velocity) in query {
+        transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value;
+    }
+}
+
+pub fn move_layer(
+    time: Res<Time<Virtual>>,
+    velocity: Single<&Velocity, With<Camera>>,
+    query: Query<(&mut Transform, &Layer)>,
+) {
+    for (mut transform, layer) in query {
+        transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value * layer.speed;
+    }
+}
+
+pub fn game_animation_control(
+    time: Res<Time<Virtual>>,
+    query: Query<(&mut AnimationTimer, &Velocity), With<OnControl>>,
+) {
+    for (mut animation, velocity) in query {
+        if velocity.value != 0.0 {
+            animation.timer.tick(time.delta());
+            animation.reset = false;
+        } else {
+            animation.timer.finish();
+            animation.reset = true;
+        }
+    }
+}
+
+pub fn action_animation_control(
+    time: Res<Time<Virtual>>,
+    animations: Query<&mut AnimationTimer, With<OnControl>>,
+) {
+    for mut animation in animations.into_iter() {
+        animation.timer.tick(time.delta());
+        animation.reset = false;
+    }
+}
+
+pub fn move_sun(time: Res<Time<Virtual>>, mut sun_query: Single<&mut Transform, With<Sun>>) {
+    let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
+    // Map to [0, 1] range.
+    let day = (1.0 + (3.14 * day_time / 12.0 - 3.14 / 2.0).sin()) / 2.0;
+
+    sun_query.translation.y = day * K_HEIGHT - K_HEIGHT / 2.0;
+}
+
+pub fn move_cloud(time: Res<Time<Virtual>>, query: Query<(&mut Transform, &Cloud, &Sprite)>) {
+    for (mut transform, cloud, sprite) in query.into_iter() {
+        if let Some(_) = sprite.custom_size {
+            match sprite.image_mode {
+                SpriteImageMode::Tiled { .. } => {
+                    transform.translation.x += K_SPEED * cloud.speed * 1.0 * time.delta_secs();
+                    transform.translation.x = transform.translation.x % K_WIDTH;
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+pub fn player_state_walk_or_row(
+    player: Single<(&mut PlayerState, &GlobalTransform), With<Player>>,
     oceans: Query<(&Ocean, &GlobalTransform)>,
     lands: Query<(&Land, &GlobalTransform)>,
 ) {
-    let (transform, mut state) = player.into_inner();
+    let (mut state, transform) = player.into_inner();
 
     if *state == PlayerState::Row {
         for (land, land_transform) in lands.iter() {
@@ -266,101 +404,21 @@ pub fn player_on_land_ocean(
     }
 }
 
-pub fn changed_direction(sprites: Query<(&mut Sprite, &Direction), Changed<Direction>>) {
-    for (mut sprite, direction) in sprites.into_iter() {
-        if *direction == Direction::Left {
-            sprite.flip_x = true;
-        } else {
-            sprite.flip_x = false;
-        }
+pub fn color_day_night(time: Res<Time<Virtual>>, query: Query<(&mut Sprite, &DefaultColor)>) {
+    info!("Time = {}", time.elapsed_secs());
+    let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
+    // Map to [0, 1] range.
+    let day = (1.0 + (3.14 * day_time / 12.0 - 3.14 / 2.0).sin()) / 2.0;
+    info!("Date = {}, light={}", day_time, day);
+
+    for (mut sprite, color) in query {
+        sprite.color = color.color.darker(0.75 - day);
     }
 }
 
-pub fn animation_control(animations: Query<(&mut AnimationTimer, &AnimationConfig, &mut Sprite)>) {
-    for (mut animation, config, mut sprite) in animations.into_iter() {
-        if animation.timer.is_finished() {
-            animation.timer = Timer::new(Duration::from_millis(animation.ms), TimerMode::Once);
-            if let Some(atlas) = &mut sprite.texture_atlas {
-                if animation.reset {
-                    atlas.index = config.first_index;
-                } else if atlas.index >= config.last_index {
-                    atlas.index = config.first_index;
-                } else {
-                    atlas.index += 1;
-                }
-            }
-        }
-    }
-}
-
-pub fn time_control(time: Res<Time>, animations: Query<&mut AnimationTimer, With<OnControl>>) {
-    for mut animation in animations.into_iter() {
-        animation.timer.tick(time.delta());
-        animation.reset = false;
-    }
-}
-
-pub fn movement_control(
-    time: Res<Time>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    objects: Query<(&mut Transform, Option<&mut Direction>), With<OnControl>>,
-    animations: Query<&mut AnimationTimer, With<OnControl>>,
-    layers: Query<(&mut Transform, &Layer), Without<OnControl>>,
-) {
-    let mut mov = 0.0;
-    if keyboard_input.pressed(KeyCode::KeyA) {
-        mov += 1.0;
-    }
-
-    if keyboard_input.pressed(KeyCode::KeyD) {
-        mov -= 1.0;
-    }
-
-    for mut animation in animations.into_iter() {
-        if mov != 0.0 {
-            animation.timer.tick(time.delta());
-            animation.reset = false;
-        } else {
-            animation.timer.finish();
-            animation.reset = true;
-        }
-    }
-
-    if mov != 0.0 {
-        for (mut transform, direction) in objects.into_iter() {
-            transform.translation.x -= mov * K_SPEED * time.delta_secs();
-            if let Some(mut direction) = direction {
-                let new_direction = if mov > 0.0 {
-                    Direction::Left
-                } else {
-                    Direction::Right
-                };
-                if *direction != new_direction {
-                    *direction = new_direction;
-                }
-            }
-            //info!("OnControl transform: {:?}", transform.translation);
-        }
-    }
-
-    for (mut transform, layer) in layers.into_iter() {
-        if mov != 0.0 {
-            transform.translation.x -= mov * K_SPEED * layer.speed * time.delta_secs();
-            //info!("Layer transform: {:?}", transform.translation);
-        }
-    }
-}
-
-pub fn sun_update(time: Res<Time<Virtual>>, mut sun_query: Single<&mut Transform, With<Sun>>) {
-    sun_query.translation.y = (0.5 * time.elapsed_secs()).sin() * K_HEIGHT / 2.0;
-}
-
-pub fn cloud_update(time: Res<Time<Virtual>>, query: Query<(&Cloud, &mut Transform)>) {
-    for (cloud, mut transform) in query.into_iter() {
-        // TODO: Fix, remove hard-coded sprite size.
-        transform.translation.x = K_SPEED * cloud.speed * time.elapsed_secs() % (2.0 * 384.0);
-    }
-}
+///
+/// Game state transition systems
+///
 
 pub fn enter_player_menu(
     mut commands: Commands,

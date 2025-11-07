@@ -4,6 +4,11 @@ use bevy::prelude::*;
 /// Component Types
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct DefaultColor {
+    pub color: Color,
+}
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct AnimationTimer {
     pub timer: Timer,
     pub ms: u64,
@@ -25,6 +30,11 @@ pub struct SpriteCollection {
 #[derive(Component, Debug, Clone)]
 pub struct ActiveSprite {
     pub index: usize,
+}
+
+#[derive(Default, Component, Debug, Clone, PartialEq)]
+pub struct Velocity {
+    pub value: f32,
 }
 
 #[derive(Component, Debug, Clone, PartialEq, Eq)]

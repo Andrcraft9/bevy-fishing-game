@@ -1,5 +1,7 @@
 use crate::components::{
-    self, ActiveSprite, AnimationConfig, AnimationTimer, Cloud, SpriteCollection,
+    self, ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
+    DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState, Sky,
+    SpriteCollection, Sun, Velocity,
 };
 use bevy::prelude::*;
 
@@ -79,6 +81,7 @@ impl LayerDesc {
         texture_atlas_layouts: &mut ResMut<Assets<TextureAtlasLayout>>,
         atlas: &SpriteAtlasDesc,
         size: Vec2,
+        color: Color,
     ) -> (Sprite, AnimationConfig) {
         let texture = asset_server.load(atlas.sprite.path.clone());
         let layout = TextureAtlasLayout::from_grid(
@@ -97,6 +100,7 @@ impl LayerDesc {
                 index: atlas.index,
             }),
             custom_size: Some(Vec2::new(size.x, size.y)),
+            color: color,
             image_mode: atlas.sprite.mode.clone(),
             ..default()
         };
@@ -120,7 +124,7 @@ impl LayerDesc {
         let mut layer_entity = commands.spawn((
             Transform::from_xyz(0.0, 0.0, self.depth),
             Name::new(self.name.clone()),
-            components::Layer {
+            Layer {
                 depth: self.depth,
                 speed: self.speed,
                 size: self.size,
@@ -141,7 +145,10 @@ impl LayerDesc {
                     commands
                         .spawn((
                             Mesh2d(mesh),
-                            MeshMaterial2d(materials.add(obj.color.clone())),
+                            MeshMaterial2d(materials.add(obj.color)),
+                            // TODO: Use sprite to be able to change color
+                            //Sprite {color: obj.color, custom_size: Some(Vec2::new(obj.size.x, obj.size.y)), ..default()},
+                            DefaultColor { color: obj.color },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                             Name::new(obj.name.clone()),
                         ))
@@ -152,7 +159,8 @@ impl LayerDesc {
                     commands
                         .spawn((
                             Mesh2d(mesh),
-                            MeshMaterial2d(materials.add(obj.color.clone())),
+                            MeshMaterial2d(materials.add(obj.color)),
+                            DefaultColor { color: obj.color },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                             Name::new(obj.name.clone()),
                         ))
@@ -166,8 +174,10 @@ impl LayerDesc {
                                 image: texture.clone(),
                                 custom_size: Some(Vec2::new(obj.size.x, obj.size.y)),
                                 image_mode: sprite.mode.clone(),
+                                color: obj.color,
                                 ..default()
                             },
+                            DefaultColor { color: obj.color },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                             Name::new(obj.name.clone()),
                         ))
@@ -179,6 +189,7 @@ impl LayerDesc {
                         texture_atlas_layouts,
                         atlas,
                         obj.size,
+                        obj.color,
                     );
 
                     let entity = commands.spawn((
@@ -211,6 +222,7 @@ impl LayerDesc {
                             texture_atlas_layouts,
                             atlas,
                             obj.size,
+                            obj.color,
                         );
 
                         sprite_collection.sprites.push(sprite);
@@ -219,6 +231,7 @@ impl LayerDesc {
 
                     // Active sprite is always the first one
                     entity.insert(sprite_collection.sprites[0].clone());
+                    entity.insert(DefaultColor { color: obj.color });
                     entity.insert(sprite_collection.animations[0].clone());
                     entity.insert(AnimationTimer {
                         timer: Timer::default(),
@@ -238,48 +251,52 @@ impl LayerDesc {
                 ObjectComponentType::Player => {
                     commands
                         .entity(entity_id)
-                        .insert(components::Player {
+                        .insert(Player {
                             money: 0.0,
                             items: Vec::new(),
                         })
-                        .insert(components::Direction::Right)
-                        .insert(components::PlayerState::Walk)
-                        .insert(components::OnControl);
+                        .insert(Direction::Right)
+                        .insert(PlayerState::Walk)
+                        .insert(Velocity { ..default() })
+                        .insert(OnControl);
                 }
                 ObjectComponentType::Boat => {
-                    commands.entity(entity_id).insert(components::Boat);
+                    commands
+                        .entity(entity_id)
+                        .insert(Boat)
+                        .insert(Velocity { ..default() });
                 }
                 ObjectComponentType::Land => {
-                    commands.entity(entity_id).insert(components::Land {
+                    commands.entity(entity_id).insert(Land {
                         size: obj.size.clone(),
                     });
                 }
                 ObjectComponentType::Ocean => {
                     commands
                         .entity(entity_id)
-                        .insert(components::Ocean {
+                        .insert(Ocean {
                             size: obj.size.clone(),
                         })
-                        .insert(components::ActionRange {
+                        .insert(ActionRange {
                             range: obj.size.x / 2.0,
                         });
                 }
                 ObjectComponentType::Building => {
                     commands
                         .entity(entity_id)
-                        .insert(components::Building)
-                        .insert(components::ActionRange {
+                        .insert(Building)
+                        .insert(ActionRange {
                             range: obj.size.x / 2.0,
                         });
                 }
                 ObjectComponentType::Sun => {
-                    commands.entity(entity_id).insert(components::Sun);
+                    commands.entity(entity_id).insert(Sun);
                 }
                 ObjectComponentType::Cloud(cloud) => {
                     commands.entity(entity_id).insert(cloud.clone());
                 }
                 ObjectComponentType::Sky => {
-                    commands.entity(entity_id).insert(components::Sky);
+                    commands.entity(entity_id).insert(Sky);
                 }
             }
 

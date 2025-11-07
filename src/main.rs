@@ -14,7 +14,7 @@ use constants::*;
 use layer::*;
 use states::*;
 
-use crate::components::OnControl;
+use crate::components::{OnControl, Velocity};
 
 fn main() {
     App::new()
@@ -28,63 +28,53 @@ fn main() {
         }))
         .insert_resource(Time::<Virtual>::from_max_delta(Duration::from_secs(1)))
         .init_state::<GameState>()
+        // Observers.
         .add_observer(systems::on_action)
         .add_observer(systems::on_end_action)
         .add_observer(systems::on_catch)
         .add_systems(Startup, setup)
-        // In-action update stage, arbitrary unordered systems.
+        // In-action update systems.
         .add_systems(
             Update,
             (
-                systems::sun_update,
-                systems::cloud_update,
+                systems::action_input,
+                systems::player_state_walk_or_row,
+                systems::move_layer,
+                systems::move_sun,
+                systems::move_cloud,
                 systems::changed_active_sprite,
-                systems::player_on_land_ocean,
-                systems::changed_player_state,
-            )
-                .distributive_run_if(in_state(GameState::InAction)),
-        )
-        // In-action update stage, ordered systems related to control/movement.
-        .add_systems(
-            Update,
-            (
-                systems::game_player_action,
-                systems::time_control,
                 systems::changed_direction,
-                systems::animation_control,
+                systems::changed_player_state,
+                systems::action_animation_control,
+                systems::animation,
             )
                 .chain()
                 .run_if(in_state(GameState::InAction)),
         )
-        // In-game update stage, arbitrary unordered systems.
+        // In-game update systems.
         .add_systems(
             Update,
             (
-                systems::global_action,
-                systems::sun_update,
-                systems::cloud_update,
+                systems::game_input,
+                systems::player_state_walk_or_row,
+                systems::color_day_night,
+                systems::move_control,
+                systems::move_layer,
+                systems::move_sun,
+                systems::move_cloud,
                 systems::changed_active_sprite,
-                systems::player_on_land_ocean,
-                systems::changed_player_state,
-            )
-                .distributive_run_if(in_state(GameState::InGame)),
-        )
-        // In-game update stage, ordered systems related to control/movement.
-        .add_systems(
-            Update,
-            (
-                systems::game_player_action,
-                systems::movement_control,
                 systems::changed_direction,
-                systems::animation_control,
+                systems::changed_player_state,
+                systems::game_animation_control,
+                systems::animation,
             )
                 .chain()
                 .run_if(in_state(GameState::InGame)),
         )
-        // In-player-menu systems.
+        // In-Menu systems.
         .add_systems(
             Update,
-            systems::global_action.run_if(in_state(GameState::InPlayerMenu)),
+            systems::menu_input.run_if(in_state(GameState::InPlayerMenu)),
         )
         .add_systems(OnEnter(GameState::InPlayerMenu), systems::enter_player_menu)
         .add_systems(OnExit(GameState::InPlayerMenu), systems::exit_player_menu)
@@ -98,7 +88,10 @@ fn setup(
     mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    commands.spawn(Camera2d).insert(OnControl);
+    commands
+        .spawn(Camera2d)
+        .insert(Velocity { ..default() })
+        .insert(OnControl);
 
     let layer_city = LayerDesc {
         objects: vec![
@@ -110,7 +103,7 @@ fn setup(
                 component: ObjectComponentType::Building,
                 position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 66.0),
                 size: Vec2::new(480.0, 320.0),
-                color: Color::srgb_u8(128, 128, 128),
+                color: Color::srgb(1.0, 1.0, 1.0),
                 name: "Hut".to_string(),
             },
             LayerObjectDesc {
@@ -158,14 +151,14 @@ fn setup(
             t: ObjectType::Primitive(PrimitiveType::Rectangle),
             component: ObjectComponentType::Sky,
             position: Vec2::new(0.0, 0.0),
-            size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+            size: Vec2::new(K_WIDTH, K_HEIGHT),
             color: Color::srgb_u8(0, 180, 250),
             name: "Sky".to_string(),
         }],
         t: LayerType::Sky,
         depth: -10.0,
-        speed: 0.0,
-        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        speed: 1.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Sky".to_string(),
     };
 
@@ -182,7 +175,7 @@ fn setup(
             component: ObjectComponentType::Sky,
             position: Vec2::new(0.0, 0.0),
             size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-            color: Color::srgb_u8(0, 180, 0),
+            color: Color::srgb(1.0, 1.0, 1.0),
             name: "Mountain".to_string(),
         }],
         t: LayerType::Sky,
@@ -200,13 +193,13 @@ fn setup(
                     mode: SpriteImageMode::Tiled {
                         tile_x: true,
                         tile_y: false,
-                        stretch_value: 2.0,
+                        stretch_value: 3.33,
                     },
                 }),
                 component: ObjectComponentType::Cloud(components::Cloud { speed: 0.5 }),
                 position: Vec2::new(0.0, 0.0),
-                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-                color: Color::srgb_u8(0, 180, 0),
+                size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb(1.0, 1.0, 1.0),
                 name: "Clouds-3".to_string(),
             },
             LayerObjectDesc {
@@ -215,13 +208,13 @@ fn setup(
                     mode: SpriteImageMode::Tiled {
                         tile_x: true,
                         tile_y: false,
-                        stretch_value: 2.0,
+                        stretch_value: 3.33,
                     },
                 }),
                 component: ObjectComponentType::Cloud(components::Cloud { speed: 0.75 }),
                 position: Vec2::new(0.0, 0.0),
-                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-                color: Color::srgb_u8(0, 180, 0),
+                size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb(1.0, 1.0, 1.0),
                 name: "Clouds-2".to_string(),
             },
             LayerObjectDesc {
@@ -230,20 +223,20 @@ fn setup(
                     mode: SpriteImageMode::Tiled {
                         tile_x: true,
                         tile_y: false,
-                        stretch_value: 2.0,
+                        stretch_value: 3.33,
                     },
                 }),
                 component: ObjectComponentType::Cloud(components::Cloud { speed: 1.0 }),
                 position: Vec2::new(0.0, 0.0),
-                size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
-                color: Color::srgb_u8(0, 180, 0),
+                size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
+                color: Color::srgb(1.0, 1.0, 1.0),
                 name: "Clouds-1".to_string(),
             },
         ],
         t: LayerType::Sky,
         depth: -5.0,
-        speed: 0.75,
-        size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT),
+        speed: 1.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Clouds".to_string(),
     };
 
@@ -260,7 +253,7 @@ fn setup(
             component: ObjectComponentType::Sky,
             position: Vec2::new(0.0, 104.0 - K_HEIGHT / 2.0),
             size: Vec2::new(8.0 * K_WIDTH, K_HEIGHT / 2.0),
-            color: Color::srgb_u8(0, 180, 0),
+            color: Color::srgb(1.0, 1.0, 1.0),
             name: "Forest".to_string(),
         }],
         t: LayerType::Sky,
