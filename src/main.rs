@@ -37,6 +37,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                systems::added_animation,
                 systems::action_input,
                 systems::player_state_walk_or_row,
                 systems::move_layer,
@@ -56,6 +57,7 @@ fn main() {
         .add_systems(
             Update,
             (
+                systems::added_animation,
                 systems::game_input,
                 systems::player_state_walk_or_row,
                 systems::move_control,
@@ -279,6 +281,7 @@ fn setup(
                     cols: 6,
                     rows: 1,
                     index: 0,
+                    mode: TimerMode::Repeating,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -289,6 +292,7 @@ fn setup(
                     cols: 4,
                     rows: 1,
                     index: 0,
+                    mode: TimerMode::Repeating,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -299,6 +303,7 @@ fn setup(
                     cols: 4,
                     rows: 1,
                     index: 0,
+                    mode: TimerMode::Repeating,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -309,6 +314,7 @@ fn setup(
                     cols: 4,
                     rows: 1,
                     index: 0,
+                    mode: TimerMode::Repeating,
                 },
             ]),
             component: ObjectComponentType::Player,

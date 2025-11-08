@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use crate::{
     components::{
-        ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-        DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu,
-        PlayerState, SpriteCollection, Sun, Velocity,
+        ActionRange, ActiveSprite, AnimationConfig, AnimationState, AnimationTimer, Boat, Building,
+        Cloud, DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player,
+        PlayerMenu, PlayerState, SpriteCollection, Sun, Velocity,
     },
     constants::{
         K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
@@ -285,23 +285,51 @@ pub fn changed_direction(sprites: Query<(&mut Sprite, &Direction), Changed<Direc
     }
 }
 
+pub fn added_animation(
+    animations: Query<(Entity, &mut AnimationTimer, &AnimationConfig), Added<AnimationTimer>>,
+    mut commands: Commands,
+) {
+    for (entity, mut animation, config) in animations.into_iter() {
+        let size = config.last_index - config.first_index + 1;
+        animation.timer = Timer::new(
+            Duration::from_millis(size as u64 * config.ms),
+            TimerMode::Once,
+        );
+        commands.entity(entity).insert(AnimationState::Run);
+    }
+}
+
 ///
 /// Update systems
 ///
 
-pub fn animation(animations: Query<(&mut AnimationTimer, &mut Sprite, &AnimationConfig)>) {
-    for (mut animation, mut sprite, config) in animations.into_iter() {
+pub fn animation(
+    animations: Query<(
+        &mut AnimationTimer,
+        &mut Sprite,
+        &mut AnimationState,
+        &AnimationConfig,
+    )>,
+) {
+    for (mut animation, mut sprite, mut state, config) in animations.into_iter() {
+        let size = config.last_index - config.first_index + 1;
+
         if animation.timer.is_finished() {
-            animation.timer = Timer::new(Duration::from_millis(animation.ms), TimerMode::Once);
-            if let Some(atlas) = &mut sprite.texture_atlas {
-                if animation.reset {
-                    atlas.index = config.first_index;
-                } else if atlas.index >= config.last_index {
-                    atlas.index = config.first_index;
-                } else {
-                    atlas.index += 1;
-                }
+            *state = AnimationState::Finish;
+            if (config.mode == TimerMode::Repeating) {
+                animation.timer = Timer::new(
+                    Duration::from_millis(size as u64 * config.ms),
+                    TimerMode::Once,
+                );
+                *state = AnimationState::Run;
             }
+        }
+
+        let current = animation.timer.elapsed();
+        let index = current.as_millis() as u64 / config.ms;
+        if let Some(atlas) = &mut sprite.texture_atlas {
+            atlas.index =
+                (config.first_index + index as usize).clamp(config.first_index, config.last_index);
         }
     }
 }
@@ -332,10 +360,8 @@ pub fn game_animation_control(
     for (mut animation, velocity) in query {
         if velocity.value != 0.0 {
             animation.timer.tick(time.delta());
-            animation.reset = false;
         } else {
             animation.timer.finish();
-            animation.reset = true;
         }
     }
 }
@@ -346,7 +372,6 @@ pub fn action_animation_control(
 ) {
     for mut animation in animations.into_iter() {
         animation.timer.tick(time.delta());
-        animation.reset = false;
     }
 }
 

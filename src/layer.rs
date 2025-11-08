@@ -1,7 +1,10 @@
-use crate::components::{
-    self, ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-    DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState,
-    Sky, SpriteCollection, Sun, Velocity,
+use crate::{
+    components::{
+        self, ActionRange, ActiveSprite, AnimationConfig, AnimationState, AnimationTimer, Boat,
+        Building, Cloud, DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl,
+        Player, PlayerState, Sky, SpriteCollection, Sun, Velocity,
+    },
+    constants::K_ANIMATION_FRAME_MS,
 };
 use bevy::prelude::*;
 
@@ -26,6 +29,7 @@ pub struct SpriteAtlasDesc {
     pub rows: u32,
     pub cols: u32,
     pub index: usize,
+    pub mode: TimerMode,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -108,6 +112,8 @@ impl LayerDesc {
         let animation_config = AnimationConfig {
             first_index: atlas.index,
             last_index: std::cmp::max(atlas.cols - 1, atlas.rows - 1) as usize,
+            ms: K_ANIMATION_FRAME_MS,
+            mode: atlas.mode,
         };
 
         (sprite, animation_config)
@@ -195,8 +201,6 @@ impl LayerDesc {
                         animation_config,
                         AnimationTimer {
                             timer: Timer::default(),
-                            ms: 100,
-                            reset: true,
                         },
                         Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                         Name::new(obj.name.clone()),
@@ -233,8 +237,6 @@ impl LayerDesc {
                     entity.insert(sprite_collection.animations[0].clone());
                     entity.insert(AnimationTimer {
                         timer: Timer::default(),
-                        ms: 100,
-                        reset: true,
                     });
                     entity.insert(ActiveSprite { index: 0 });
 

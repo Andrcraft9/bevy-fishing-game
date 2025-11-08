@@ -14,14 +14,22 @@ pub struct DayNightColor;
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct AnimationTimer {
     pub timer: Timer,
-    pub ms: u64,
-    pub reset: bool,
+}
+
+#[derive(Default, Component, Debug, Clone, PartialEq)]
+pub enum AnimationState {
+    Run,
+    #[default]
+    Finish,
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct AnimationConfig {
     pub first_index: usize,
     pub last_index: usize,
+    // Duration per frame in ms
+    pub ms: u64,
+    pub mode: TimerMode,
 }
 
 #[derive(Component, Debug, Clone)]
