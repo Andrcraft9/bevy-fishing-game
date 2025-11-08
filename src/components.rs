@@ -9,6 +9,9 @@ pub struct DefaultColor {
 }
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct DayNightColor;
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct AnimationTimer {
     pub timer: Timer,
     pub ms: u64,

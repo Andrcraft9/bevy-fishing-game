@@ -3,8 +3,8 @@ use std::time::Duration;
 use crate::{
     components::{
         ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-        DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu, PlayerState,
-        SpriteCollection, Sun, Velocity,
+        DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerMenu,
+        PlayerState, SpriteCollection, Sun, Velocity,
     },
     constants::{
         K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
@@ -404,7 +404,10 @@ pub fn player_state_walk_or_row(
     }
 }
 
-pub fn color_day_night(time: Res<Time<Virtual>>, query: Query<(&mut Sprite, &DefaultColor)>) {
+pub fn color_day_night(
+    time: Res<Time<Virtual>>,
+    query: Query<(&mut Sprite, &DefaultColor), With<DayNightColor>>,
+) {
     info!("Time = {}", time.elapsed_secs());
     let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
     // Map to [0, 1] range.
@@ -412,7 +415,7 @@ pub fn color_day_night(time: Res<Time<Virtual>>, query: Query<(&mut Sprite, &Def
     info!("Date = {}, light={}", day_time, day);
 
     for (mut sprite, color) in query {
-        sprite.color = color.color.darker(0.75 - day);
+        sprite.color = color.color.darker(0.8 * (1.0 - day));
     }
 }
 

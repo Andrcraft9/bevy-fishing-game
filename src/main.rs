@@ -47,6 +47,7 @@ fn main() {
                 systems::changed_player_state,
                 systems::action_animation_control,
                 systems::animation,
+                systems::color_day_night,
             )
                 .chain()
                 .run_if(in_state(GameState::InAction)),
@@ -57,7 +58,6 @@ fn main() {
             (
                 systems::game_input,
                 systems::player_state_walk_or_row,
-                systems::color_day_night,
                 systems::move_control,
                 systems::move_layer,
                 systems::move_sun,
@@ -67,6 +67,7 @@ fn main() {
                 systems::changed_player_state,
                 systems::game_animation_control,
                 systems::animation,
+                systems::color_day_night,
             )
                 .chain()
                 .run_if(in_state(GameState::InGame)),
@@ -148,11 +149,14 @@ fn setup(
 
     let layer_sky = LayerDesc {
         objects: vec![LayerObjectDesc {
-            t: ObjectType::Primitive(PrimitiveType::Rectangle),
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "sky/sky.png".to_string(),
+                ..default()
+            }),
             component: ObjectComponentType::Sky,
             position: Vec2::new(0.0, 0.0),
             size: Vec2::new(K_WIDTH, K_HEIGHT),
-            color: Color::srgb_u8(0, 180, 250),
+            color: Color::srgb(1.0, 1.0, 1.0),
             name: "Sky".to_string(),
         }],
         t: LayerType::Sky,

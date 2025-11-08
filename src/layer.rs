@@ -1,7 +1,7 @@
 use crate::components::{
     self, ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-    DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState, Sky,
-    SpriteCollection, Sun, Velocity,
+    DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState,
+    Sky, SpriteCollection, Sun, Velocity,
 };
 use bevy::prelude::*;
 
@@ -146,8 +146,6 @@ impl LayerDesc {
                         .spawn((
                             Mesh2d(mesh),
                             MeshMaterial2d(materials.add(obj.color)),
-                            // TODO: Use sprite to be able to change color
-                            //Sprite {color: obj.color, custom_size: Some(Vec2::new(obj.size.x, obj.size.y)), ..default()},
                             DefaultColor { color: obj.color },
                             Transform::from_xyz(obj.position.x, obj.position.y, 0.0),
                             Name::new(obj.name.clone()),
@@ -167,7 +165,7 @@ impl LayerDesc {
                         .id()
                 }
                 ObjectType::Sprite(sprite) => {
-                    let texture = asset_server.load(sprite.path.clone());
+                    let texture: Handle<Image> = asset_server.load(sprite.path.clone());
                     commands
                         .spawn((
                             Sprite {
@@ -264,7 +262,8 @@ impl LayerDesc {
                     commands
                         .entity(entity_id)
                         .insert(Boat)
-                        .insert(Velocity { ..default() });
+                        .insert(Velocity { ..default() })
+                        .insert(DayNightColor);
                 }
                 ObjectComponentType::Land => {
                     commands.entity(entity_id).insert(Land {
@@ -287,16 +286,20 @@ impl LayerDesc {
                         .insert(Building)
                         .insert(ActionRange {
                             range: obj.size.x / 2.0,
-                        });
+                        })
+                        .insert(DayNightColor);
                 }
                 ObjectComponentType::Sun => {
                     commands.entity(entity_id).insert(Sun);
                 }
                 ObjectComponentType::Cloud(cloud) => {
-                    commands.entity(entity_id).insert(cloud.clone());
+                    commands
+                        .entity(entity_id)
+                        .insert(cloud.clone())
+                        .insert(DayNightColor);
                 }
                 ObjectComponentType::Sky => {
-                    commands.entity(entity_id).insert(Sky);
+                    commands.entity(entity_id).insert(Sky).insert(DayNightColor);
                 }
             }
 
