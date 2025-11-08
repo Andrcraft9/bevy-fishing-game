@@ -10,7 +10,7 @@ use crate::{
         K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
         K_WIDTH,
     },
-    events::{Action, Catch, EndAction, Hook},
+    events::{Action, Catch, EndAction, Hit, Hook, Sell},
     items::{self, Value, Weight},
     states::GameState,
 };
@@ -27,6 +27,38 @@ pub fn on_hook(_action: On<Hook>, player: Single<&mut PlayerState, With<Player>>
     let mut player = player.into_inner();
     if *player == PlayerState::Fish {
         *player = PlayerState::Hook;
+    } else if *player == PlayerState::Idle {
+        *player = PlayerState::Attack;
+    }
+}
+
+pub fn on_sell(_action: On<Sell>, player: Single<&mut Player>) {
+    info!("On Sell!");
+    let mut player = player.into_inner();
+    let item = player.items.pop();
+    if let Some(item) = item {
+        info!("Sold item: {}", item.name());
+        player.money += item.value();
+    }
+}
+
+pub fn on_hit(
+    _action: On<Hit>,
+    player: Single<&GlobalTransform, With<Player>>,
+    buildings: Query<(&GlobalTransform, &Name, &ActionRange), With<Building>>,
+    mut commands: Commands,
+) {
+    info!("On Hit!");
+    let position = player.translation();
+    for (transform, name, action_range) in buildings.iter() {
+        let distance = (position.x - transform.translation().x).abs();
+        if distance <= action_range.range {
+            info!(
+                "Found building '{}' at distance {:.2} from action",
+                name, distance
+            );
+            commands.trigger(Sell);
+        }
     }
 }
 
@@ -54,42 +86,24 @@ pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
 }
 
 pub fn on_action(
-    action: On<Action>,
-    player: Single<(&mut Player, &mut PlayerState)>,
+    _action: On<Action>,
+    player: Single<(&mut PlayerState, &GlobalTransform)>,
     oceans: Query<(&GlobalTransform, &Name, &ActionRange), With<Ocean>>,
-    buildings: Query<(&GlobalTransform, &Name, &ActionRange), With<Building>>,
 ) {
-    let (mut player, mut state) = player.into_inner();
-    let action_position = action.event().position;
-
     info!("On Action!");
+    let (mut state, player_transform) = player.into_inner();
+    let position = player_transform.translation();
+
     *state = PlayerState::Idle;
 
     for (transform, name, action_range) in oceans.iter() {
-        let distance = (action_position.x - transform.translation().x).abs();
+        let distance = (position.x - transform.translation().x).abs();
         if distance <= action_range.range {
             info!(
                 "Found ocean '{}' at distance {:.2} from action",
                 name, distance
             );
             *state = PlayerState::Fish;
-            return;
-        }
-    }
-
-    for (transform, name, action_range) in buildings.iter() {
-        let distance = (action_position.x - transform.translation().x).abs();
-        if distance <= action_range.range {
-            info!(
-                "Found building '{}' at distance {:.2} from action",
-                name, distance
-            );
-            info!("Selling...");
-            let item = player.items.pop();
-            if let Some(item) = item {
-                info!("Sold item: {}", item.name());
-                player.money += item.value();
-            }
             return;
         }
     }
@@ -124,7 +138,6 @@ pub fn menu_input(
 
 pub fn game_input(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    player_transform: Single<&GlobalTransform, With<Player>>,
     query: Query<(&mut Velocity, Option<&mut Direction>), With<OnControl>>,
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
@@ -153,12 +166,7 @@ pub fn game_input(
     if keyboard_input.just_pressed(KeyCode::Space) {
         info!("Stay, trigger action!");
         vel = 0.0;
-        commands.trigger(Action {
-            position: Vec2::new(
-                player_transform.translation().x,
-                player_transform.translation().y,
-            ),
-        });
+        commands.trigger(Action);
         next_state.set(GameState::InAction);
     }
 
@@ -290,6 +298,14 @@ pub fn changed_player_state(
             transform.translation.y = K_GROUND_LEVEL + 64.0;
             transform.translation.z = -0.1;
         }
+        PlayerState::Attack => {
+            info!("Attack!");
+            let (_entity, mut active, mut transform) = set.p0().into_inner();
+            // TODO: Hard-coded values should be removed.
+            active.index = 5;
+            transform.translation.y = K_GROUND_LEVEL + 64.0;
+            transform.translation.z = 0.0;
+        }
     }
 }
 
@@ -322,12 +338,18 @@ pub fn changed_animation_player(
     mut commands: Commands,
 ) {
     let (mut player_state, state) = query.into_inner();
-    info!("Changed State! {:?}", state);
+    //info!("Changed State! {:?}", state);
     match *player_state {
         PlayerState::Hook => {
             if *state == AnimationState::Finish {
                 commands.trigger(Catch);
                 *player_state = PlayerState::Fish;
+            }
+        }
+        PlayerState::Attack => {
+            if *state == AnimationState::Finish {
+                commands.trigger(Hit);
+                *player_state = PlayerState::Idle;
             }
         }
         _ => {}

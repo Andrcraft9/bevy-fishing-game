@@ -39,7 +39,8 @@ cargo run --release
 ### Controls
 - **A**: Move left
 - **D**: Move right
-- **Space**: Action, interact with objects
+- **Space**: Action mode
+- **W**, **S**: Hook/Attack when in Action mode
 - **Tab**: Inventory
 - **Esc**: Exit menu/game
 

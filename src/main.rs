@@ -32,7 +32,9 @@ fn main() {
         .add_observer(systems::on_action)
         .add_observer(systems::on_end_action)
         .add_observer(systems::on_hook)
+        .add_observer(systems::on_sell)
         .add_observer(systems::on_catch)
+        .add_observer(systems::on_hit)
         .add_systems(Startup, setup)
         // In-action update systems.
         .add_systems(
@@ -321,6 +323,17 @@ fn setup(
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
                         path: "player/hook.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 6,
+                    rows: 1,
+                    index: 0,
+                    mode: TimerMode::Once,
+                },
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/attack.png".to_string(),
                         ..default()
                     },
                     splat: 48,

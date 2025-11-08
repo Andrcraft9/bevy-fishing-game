@@ -124,4 +124,5 @@ pub enum PlayerState {
     Row,
     Fish,
     Hook,
+    Attack,
 }

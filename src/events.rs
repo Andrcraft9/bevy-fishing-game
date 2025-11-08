@@ -3,9 +3,7 @@ use bevy::prelude::*;
 /// Events
 
 #[derive(Event)]
-pub struct Action {
-    pub position: Vec2,
-}
+pub struct Action;
 
 #[derive(Event)]
 pub struct EndAction;
@@ -15,3 +13,9 @@ pub struct Hook;
 
 #[derive(Event)]
 pub struct Catch;
+
+#[derive(Event)]
+pub struct Hit;
+
+#[derive(Event)]
+pub struct Sell;
