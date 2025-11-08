@@ -10,7 +10,7 @@ use crate::{
         K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
         K_WIDTH,
     },
-    events::{Action, Catch, EndAction},
+    events::{Action, Catch, EndAction, Hook},
     items::{self, Value, Weight},
     states::GameState,
 };
@@ -22,9 +22,16 @@ use rand::Rng;
 /// Observers
 ///
 
+pub fn on_hook(_action: On<Hook>, player: Single<&mut PlayerState, With<Player>>) {
+    info!("On Hook!");
+    let mut player = player.into_inner();
+    if *player == PlayerState::Fish {
+        *player = PlayerState::Hook;
+    }
+}
+
 pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
     info!("On Catch!");
-
     let mut rng = rand::thread_rng();
     let chance: f32 = rng.gen_range(0.0..1.0);
     if chance < 0.1 {
@@ -174,6 +181,10 @@ pub fn action_input(
     mut commands: Commands,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
+    if keyboard_input.just_released(KeyCode::KeyW) || keyboard_input.just_released(KeyCode::KeyS) {
+        commands.trigger(Hook);
+    }
+
     if keyboard_input.just_released(KeyCode::Space) {
         info!("End action!");
         commands.trigger(EndAction);
@@ -196,6 +207,7 @@ pub fn changed_active_sprite(
     for (entity, active, collection, direction) in query {
         commands.entity(entity).remove::<Sprite>();
         commands.entity(entity).remove::<AnimationConfig>();
+        commands.entity(entity).remove::<AnimationTimer>();
 
         let mut sprite = collection.sprites[active.index].clone();
         if let Some(direction) = direction {
@@ -212,7 +224,8 @@ pub fn changed_active_sprite(
         commands.entity(entity).insert(sprite);
         commands
             .entity(entity)
-            .insert(collection.animations[active.index].clone());
+            .insert(collection.animations[active.index].clone())
+            .insert(AnimationTimer { ..default() });
     }
 }
 
@@ -257,7 +270,7 @@ pub fn changed_player_state(
         PlayerState::Fish => {
             let (_entity, mut active, mut transform) = set.p0().into_inner();
             info!("Fish!");
-            // TODO: Ideally, hard-coded values should be removed.
+            // TODO: Hard-coded values should be removed.
             active.index = 2;
             transform.translation.y = K_GROUND_LEVEL + 64.0;
             transform.translation.z = -0.1;
@@ -269,8 +282,13 @@ pub fn changed_player_state(
             transform.translation.y = K_GROUND_LEVEL + 64.0;
             transform.translation.z = 0.0;
         }
-        PlayerState::Catch => {
-            info!("Catch!");
+        PlayerState::Hook => {
+            info!("Hook!");
+            let (_entity, mut active, mut transform) = set.p0().into_inner();
+            // TODO: Hard-coded values should be removed.
+            active.index = 4;
+            transform.translation.y = K_GROUND_LEVEL + 64.0;
+            transform.translation.z = -0.1;
         }
     }
 }
@@ -299,6 +317,23 @@ pub fn added_animation(
     }
 }
 
+pub fn changed_animation_player(
+    query: Single<(&mut PlayerState, &AnimationState), Changed<AnimationState>>,
+    mut commands: Commands,
+) {
+    let (mut player_state, state) = query.into_inner();
+    info!("Changed State! {:?}", state);
+    match *player_state {
+        PlayerState::Hook => {
+            if *state == AnimationState::Finish {
+                commands.trigger(Catch);
+                *player_state = PlayerState::Fish;
+            }
+        }
+        _ => {}
+    }
+}
+
 ///
 /// Update systems
 ///
@@ -315,21 +350,24 @@ pub fn animation(
         let size = config.last_index - config.first_index + 1;
 
         if animation.timer.is_finished() {
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = config.first_index;
+            }
             *state = AnimationState::Finish;
-            if (config.mode == TimerMode::Repeating) {
+            if config.mode == TimerMode::Repeating {
                 animation.timer = Timer::new(
                     Duration::from_millis(size as u64 * config.ms),
                     TimerMode::Once,
                 );
                 *state = AnimationState::Run;
             }
-        }
-
-        let current = animation.timer.elapsed();
-        let index = current.as_millis() as u64 / config.ms;
-        if let Some(atlas) = &mut sprite.texture_atlas {
-            atlas.index =
-                (config.first_index + index as usize).clamp(config.first_index, config.last_index);
+        } else {
+            let current = animation.timer.elapsed();
+            let index = current.as_millis() as u64 / config.ms;
+            if let Some(atlas) = &mut sprite.texture_atlas {
+                atlas.index = (config.first_index + index as usize)
+                    .clamp(config.first_index, config.last_index);
+            }
         }
     }
 }
@@ -433,11 +471,11 @@ pub fn color_day_night(
     time: Res<Time<Virtual>>,
     query: Query<(&mut Sprite, &DefaultColor), With<DayNightColor>>,
 ) {
-    info!("Time = {}", time.elapsed_secs());
+    //info!("Time = {}", time.elapsed_secs());
     let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
     // Map to [0, 1] range.
     let day = (1.0 + (3.14 * day_time / 12.0 - 3.14 / 2.0).sin()) / 2.0;
-    info!("Date = {}, light={}", day_time, day);
+    //info!("Date = {}, light={}", day_time, day);
 
     for (mut sprite, color) in query {
         sprite.color = color.color.darker(0.8 * (1.0 - day));

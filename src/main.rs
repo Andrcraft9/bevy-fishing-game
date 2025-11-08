@@ -31,6 +31,7 @@ fn main() {
         // Observers.
         .add_observer(systems::on_action)
         .add_observer(systems::on_end_action)
+        .add_observer(systems::on_hook)
         .add_observer(systems::on_catch)
         .add_systems(Startup, setup)
         // In-action update systems.
@@ -43,6 +44,7 @@ fn main() {
                 systems::move_layer,
                 systems::move_sun,
                 systems::move_cloud,
+                systems::changed_animation_player,
                 systems::changed_active_sprite,
                 systems::changed_direction,
                 systems::changed_player_state,
@@ -315,6 +317,17 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                },
+                SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "player/hook.png".to_string(),
+                        ..default()
+                    },
+                    splat: 48,
+                    cols: 6,
+                    rows: 1,
+                    index: 0,
+                    mode: TimerMode::Once,
                 },
             ]),
             component: ObjectComponentType::Player,

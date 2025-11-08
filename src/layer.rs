@@ -1,8 +1,8 @@
 use crate::{
     components::{
-        self, ActionRange, ActiveSprite, AnimationConfig, AnimationState, AnimationTimer, Boat,
-        Building, Cloud, DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl,
-        Player, PlayerState, Sky, SpriteCollection, Sun, Velocity,
+        self, ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
+        DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState,
+        Sky, SpriteCollection, Sun, Velocity,
     },
     constants::K_ANIMATION_FRAME_MS,
 };

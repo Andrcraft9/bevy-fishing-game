@@ -11,7 +11,7 @@ pub struct DefaultColor {
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct DayNightColor;
 
-#[derive(Component, Debug, Clone, PartialEq)]
+#[derive(Default, Component, Debug, Clone, PartialEq)]
 pub struct AnimationTimer {
     pub timer: Timer,
 }
@@ -123,5 +123,5 @@ pub enum PlayerState {
     Walk,
     Row,
     Fish,
-    Catch,
+    Hook,
 }

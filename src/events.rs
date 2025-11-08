@@ -11,4 +11,7 @@ pub struct Action {
 pub struct EndAction;
 
 #[derive(Event)]
+pub struct Hook;
+
+#[derive(Event)]
 pub struct Catch;
