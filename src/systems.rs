@@ -267,7 +267,7 @@ pub fn changed_player_state(
                 info!("Sit and Row!");
                 active.index = 1;
                 transform.translation.y = K_GROUND_LEVEL + 64.0 + K_SIT_OFFSET;
-                transform.translation.z = 0.0;
+                transform.translation.z = 0.55;
             }
             {
                 let (boat_entity, _) = set.p1().into_inner();
@@ -281,7 +281,7 @@ pub fn changed_player_state(
             // TODO: Hard-coded values should be removed.
             active.index = 2;
             transform.translation.y = K_GROUND_LEVEL + 64.0;
-            transform.translation.z = -0.1;
+            transform.translation.z = 0.0;
         }
         PlayerState::Idle => {
             let (_entity, mut active, mut transform) = set.p0().into_inner();
@@ -296,7 +296,7 @@ pub fn changed_player_state(
             // TODO: Hard-coded values should be removed.
             active.index = 4;
             transform.translation.y = K_GROUND_LEVEL + 64.0;
-            transform.translation.z = -0.1;
+            transform.translation.z = 0.0;
         }
         PlayerState::Attack => {
             info!("Attack!");
@@ -396,10 +396,15 @@ pub fn animation(
 
 pub fn move_control(
     time: Res<Time<Virtual>>,
-    query: Query<(&mut Transform, &Velocity), With<OnControl>>,
+    query: Query<(&mut Transform, &Velocity, Option<&Camera>), With<OnControl>>,
 ) {
-    for (mut transform, velocity) in query {
+    for (mut transform, velocity, camera) in query {
         transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value;
+        if let Some(_) = camera {
+            let sig = (transform.translation.x - (K_OCEAN_LAND_BORDER + K_WIDTH / 2.0)).signum();
+            transform.translation.y -= sig * K_SPEED * time.delta_secs();
+            transform.translation.y = transform.translation.y.clamp(-K_HEIGHT / 2.0, 0.0);
+        }
     }
 }
 

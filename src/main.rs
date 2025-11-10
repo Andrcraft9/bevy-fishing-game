@@ -100,36 +100,50 @@ fn setup(
         .insert(Velocity { ..default() })
         .insert(OnControl);
 
-    let layer_city = LayerDesc {
+    let layer_terrain = LayerDesc {
         objects: vec![
-            LayerObjectDesc {
-                t: ObjectType::Sprite(SpriteDesc {
-                    path: "building/hut.png".to_string(),
-                    ..default()
-                }),
-                component: ObjectComponentType::Building,
-                position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 66.0),
-                size: Vec2::new(480.0, 320.0),
-                color: Color::srgb(1.0, 1.0, 1.0),
-                name: "Hut".to_string(),
-            },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Land,
-                position: Vec2::new(K_OCEAN_LAND_BORDER - 2048.0, K_GROUND_LEVEL - 32.0),
-                size: Vec2::new(4096.0, 64.0),
+                position: Vec2::new(
+                    K_OCEAN_LAND_BORDER - 2048.0,
+                    K_GROUND_LEVEL - K_HEIGHT / 2.0,
+                ),
+                size: Vec2::new(4096.0, K_HEIGHT),
                 color: Color::srgb_u8(60, 128, 60),
                 name: "Land".to_string(),
             },
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean,
-                position: Vec2::new(K_OCEAN_LAND_BORDER + 2048.0, K_GROUND_LEVEL - 32.0),
-                size: Vec2::new(4096.0, 64.0),
+                position: Vec2::new(
+                    K_OCEAN_LAND_BORDER + 2048.0,
+                    K_GROUND_LEVEL - K_HEIGHT / 2.0,
+                ),
+                size: Vec2::new(4096.0, K_HEIGHT),
                 color: Color::srgb_u8(85, 128, 200),
                 name: "Ocean".to_string(),
             },
         ],
+        t: LayerType::City,
+        depth: 1.0,
+        speed: 0.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Terrain".to_string(),
+    };
+
+    let layer_city = LayerDesc {
+        objects: vec![LayerObjectDesc {
+            t: ObjectType::Sprite(SpriteDesc {
+                path: "building/hut.png".to_string(),
+                ..default()
+            }),
+            component: ObjectComponentType::Building,
+            position: Vec2::new(K_OCEAN_LAND_BORDER, K_GROUND_LEVEL + 128.0 - 66.0),
+            size: Vec2::new(480.0, 320.0),
+            color: Color::srgb(1.0, 1.0, 1.0),
+            name: "Hut".to_string(),
+        }],
         t: LayerType::City,
         depth: 0.0,
         speed: 0.0,
@@ -350,7 +364,7 @@ fn setup(
             name: "Player".to_string(),
         }],
         t: LayerType::Player,
-        depth: 0.5,
+        depth: 5.0,
         speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Player".to_string(),
@@ -369,12 +383,19 @@ fn setup(
             name: "Boat".to_string(),
         }],
         t: LayerType::Boat,
-        depth: 0.45,
+        depth: 5.5,
         speed: 0.0,
         size: Vec2::new(K_WIDTH, K_HEIGHT),
         name: "Boat".to_string(),
     };
 
+    layer_terrain.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
     layer_city.build(
         &mut commands,
         &asset_server,
