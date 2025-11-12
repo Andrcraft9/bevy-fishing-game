@@ -17,4 +17,6 @@ pub const K_SPEED: f32 = 150.0;
 pub const K_ANIMATION_FRAME_MS: u64 = 100;
 pub const K_SECS_IN_DAY: f32 = 30.0;
 pub const K_OCEAN_LAND_BORDER: f32 = 512.0;
+pub const K_OCEAN_SIZE: f32 = 4096.0;
+pub const K_LAND_SIZE: f32 = 4096.0;
 pub const K_SIT_OFFSET: f32 = -22.0;

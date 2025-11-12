@@ -1,8 +1,8 @@
 use crate::{
     components::{
         self, ActionRange, ActiveSprite, AnimationConfig, AnimationTimer, Boat, Building, Cloud,
-        DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player, PlayerState,
-        Sky, SpriteCollection, Sun, Velocity,
+        DayNightColor, DefaultColor, Direction, Fish, Land, Layer, Ocean, OnAI, OnControl, Player,
+        PlayerState, Sky, SpriteCollection, Sun, Velocity,
     },
     constants::K_ANIMATION_FRAME_MS,
 };
@@ -25,7 +25,7 @@ pub struct SpriteDesc {
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct SpriteAtlasDesc {
     pub sprite: SpriteDesc,
-    pub splat: u32,
+    pub tile: UVec2,
     pub rows: u32,
     pub cols: u32,
     pub index: usize,
@@ -50,6 +50,7 @@ pub enum ObjectComponentType {
     Sun,
     Cloud(Cloud),
     Sky,
+    Fish,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -88,13 +89,7 @@ impl LayerDesc {
         color: Color,
     ) -> (Sprite, AnimationConfig) {
         let texture = asset_server.load(atlas.sprite.path.clone());
-        let layout = TextureAtlasLayout::from_grid(
-            UVec2::splat(atlas.splat),
-            atlas.cols,
-            atlas.rows,
-            None,
-            None,
-        );
+        let layout = TextureAtlasLayout::from_grid(atlas.tile, atlas.cols, atlas.rows, None, None);
         let texture_atlas_layout = texture_atlas_layouts.add(layout);
 
         let sprite = Sprite {
@@ -302,6 +297,14 @@ impl LayerDesc {
                 }
                 ObjectComponentType::Sky => {
                     commands.entity(entity_id).insert(Sky).insert(DayNightColor);
+                }
+                ObjectComponentType::Fish => {
+                    commands
+                        .entity(entity_id)
+                        .insert(Fish)
+                        .insert(Direction::Right)
+                        .insert(Velocity { value: 1.0 })
+                        .insert(OnAI);
                 }
             }
 

@@ -42,15 +42,18 @@ fn main() {
             (
                 systems::added_animation,
                 systems::action_input,
+                systems::ai_input,
                 systems::player_state_walk_or_row,
                 systems::move_layer,
                 systems::move_sun,
                 systems::move_cloud,
+                systems::move_ai,
                 systems::changed_animation_player,
                 systems::changed_active_sprite,
                 systems::changed_direction,
                 systems::changed_player_state,
                 systems::action_animation_control,
+                systems::animation_ai,
                 systems::animation,
                 systems::color_day_night,
             )
@@ -63,15 +66,18 @@ fn main() {
             (
                 systems::added_animation,
                 systems::game_input,
+                systems::ai_input,
                 systems::player_state_walk_or_row,
                 systems::move_control,
                 systems::move_layer,
                 systems::move_sun,
                 systems::move_cloud,
+                systems::move_ai,
                 systems::changed_active_sprite,
                 systems::changed_direction,
                 systems::changed_player_state,
                 systems::game_animation_control,
+                systems::animation_ai,
                 systems::animation,
                 systems::color_day_night,
             )
@@ -100,16 +106,80 @@ fn setup(
         .insert(Velocity { ..default() })
         .insert(OnControl);
 
+    let layer_fauna = LayerDesc {
+        objects: vec![
+            LayerObjectDesc {
+                t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "fauna/fish/7.png".to_string(),
+                        ..default()
+                    },
+                    tile: UVec2::new(30, 12),
+                    cols: 2,
+                    rows: 1,
+                    index: 0,
+                    mode: TimerMode::Repeating,
+                }),
+                component: ObjectComponentType::Fish,
+                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 16.0),
+                size: Vec2::new(48.0, 16.0),
+                color: Color::srgb(1.0, 1.0, 1.0),
+                name: "Fish".to_string(),
+            },
+            LayerObjectDesc {
+                t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "fauna/fish/8.png".to_string(),
+                        ..default()
+                    },
+                    tile: UVec2::new(30, 12),
+                    cols: 2,
+                    rows: 1,
+                    index: 0,
+                    mode: TimerMode::Repeating,
+                }),
+                component: ObjectComponentType::Fish,
+                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 64.0),
+                size: Vec2::new(64.0, 18.0),
+                color: Color::srgb(1.0, 1.0, 1.0),
+                name: "Ray".to_string(),
+            },
+            LayerObjectDesc {
+                t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
+                    sprite: SpriteDesc {
+                        path: "fauna/fish/6.png".to_string(),
+                        ..default()
+                    },
+                    tile: UVec2::new(54, 22),
+                    cols: 2,
+                    rows: 1,
+                    index: 0,
+                    mode: TimerMode::Repeating,
+                }),
+                component: ObjectComponentType::Fish,
+                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 128.0),
+                size: Vec2::new(128.0, 48.0),
+                color: Color::srgb(1.0, 1.0, 1.0),
+                name: "Shark".to_string(),
+            },
+        ],
+        t: LayerType::City,
+        depth: 1.0,
+        speed: 0.0,
+        size: Vec2::new(K_WIDTH, K_HEIGHT),
+        name: "Fauna".to_string(),
+    };
+
     let layer_terrain = LayerDesc {
         objects: vec![
             LayerObjectDesc {
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Land,
                 position: Vec2::new(
-                    K_OCEAN_LAND_BORDER - 2048.0,
+                    K_OCEAN_LAND_BORDER - K_LAND_SIZE / 2.0,
                     K_GROUND_LEVEL - K_HEIGHT / 2.0,
                 ),
-                size: Vec2::new(4096.0, K_HEIGHT),
+                size: Vec2::new(K_LAND_SIZE, K_HEIGHT),
                 color: Color::srgb_u8(60, 128, 60),
                 name: "Land".to_string(),
             },
@@ -117,10 +187,10 @@ fn setup(
                 t: ObjectType::Primitive(PrimitiveType::Rectangle),
                 component: ObjectComponentType::Ocean,
                 position: Vec2::new(
-                    K_OCEAN_LAND_BORDER + 2048.0,
+                    K_OCEAN_LAND_BORDER + K_OCEAN_SIZE / 2.0,
                     K_GROUND_LEVEL - K_HEIGHT / 2.0,
                 ),
-                size: Vec2::new(4096.0, K_HEIGHT),
+                size: Vec2::new(K_OCEAN_SIZE, K_HEIGHT),
                 color: Color::srgb_u8(85, 128, 200),
                 name: "Ocean".to_string(),
             },
@@ -295,7 +365,7 @@ fn setup(
                         path: "player/walk.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 6,
                     rows: 1,
                     index: 0,
@@ -306,7 +376,7 @@ fn setup(
                         path: "player/row.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 4,
                     rows: 1,
                     index: 0,
@@ -317,7 +387,7 @@ fn setup(
                         path: "player/fish.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 4,
                     rows: 1,
                     index: 0,
@@ -328,7 +398,7 @@ fn setup(
                         path: "player/idle.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 4,
                     rows: 1,
                     index: 0,
@@ -339,7 +409,7 @@ fn setup(
                         path: "player/hook.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 6,
                     rows: 1,
                     index: 0,
@@ -350,7 +420,7 @@ fn setup(
                         path: "player/attack.png".to_string(),
                         ..default()
                     },
-                    splat: 48,
+                    tile: UVec2::splat(48),
                     cols: 6,
                     rows: 1,
                     index: 0,
@@ -389,6 +459,13 @@ fn setup(
         name: "Boat".to_string(),
     };
 
+    layer_fauna.build(
+        &mut commands,
+        &asset_server,
+        &mut meshes,
+        &mut texture_atlas_layouts,
+        &mut materials,
+    );
     layer_terrain.build(
         &mut commands,
         &asset_server,

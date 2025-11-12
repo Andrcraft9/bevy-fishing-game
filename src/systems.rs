@@ -3,12 +3,12 @@ use std::time::Duration;
 use crate::{
     components::{
         ActionRange, ActiveSprite, AnimationConfig, AnimationState, AnimationTimer, Boat, Building,
-        Cloud, DayNightColor, DefaultColor, Direction, Land, Layer, Ocean, OnControl, Player,
-        PlayerMenu, PlayerState, SpriteCollection, Sun, Velocity,
+        Cloud, DayNightColor, DefaultColor, Direction, Fish, Land, Layer, Ocean, OnAI, OnControl,
+        Player, PlayerMenu, PlayerState, SpriteCollection, Sun, Velocity,
     },
     constants::{
-        K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED,
-        K_WIDTH,
+        K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_OCEAN_SIZE, K_SECS_IN_DAY, K_SIT_OFFSET,
+        K_SPEED, K_WIDTH,
     },
     events::{Action, Catch, EndAction, Hit, Hook, Sell},
     items::{self, Value, Weight},
@@ -198,6 +198,36 @@ pub fn action_input(
         commands.trigger(EndAction);
         next_state.set(GameState::InGame);
         return;
+    }
+}
+
+pub fn ai_input(
+    time: Res<Time<Virtual>>,
+    query: Query<(&mut Velocity, Option<&mut Direction>), With<OnAI>>,
+) {
+    let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
+    if day_time as u32 % 2 == 0 {
+        info!("AI control: time={}", day_time);
+        for (mut velocity, direction) in query {
+            let mut rng = rand::thread_rng();
+            let chance: f32 = rng.gen_range(0.0..1.0);
+
+            let mut vel = velocity.value;
+            if chance < 0.05 {
+                vel = -1.0;
+            }
+            if chance > 0.95 {
+                vel = 1.0
+            };
+            velocity.value = vel;
+            if let Some(mut direction) = direction {
+                *direction = if vel > 0.0 {
+                    Direction::Left
+                } else {
+                    Direction::Right
+                };
+            }
+        }
     }
 }
 
@@ -418,6 +448,19 @@ pub fn move_layer(
     }
 }
 
+pub fn move_ai(
+    time: Res<Time<Virtual>>,
+    query: Query<(&mut Transform, &Velocity, &Fish), With<OnAI>>,
+) {
+    for (mut transform, velocity, _) in query {
+        transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value;
+        transform.translation.x = transform.translation.x.clamp(
+            K_OCEAN_LAND_BORDER + 64.0,
+            K_OCEAN_LAND_BORDER + K_OCEAN_SIZE / 2.0,
+        );
+    }
+}
+
 pub fn game_animation_control(
     time: Res<Time<Virtual>>,
     query: Query<(&mut AnimationTimer, &Velocity), With<OnControl>>,
@@ -435,6 +478,12 @@ pub fn action_animation_control(
     time: Res<Time<Virtual>>,
     animations: Query<&mut AnimationTimer, With<OnControl>>,
 ) {
+    for mut animation in animations.into_iter() {
+        animation.timer.tick(time.delta());
+    }
+}
+
+pub fn animation_ai(time: Res<Time<Virtual>>, animations: Query<&mut AnimationTimer, With<OnAI>>) {
     for mut animation in animations.into_iter() {
         animation.timer.tick(time.delta());
     }

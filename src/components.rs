@@ -64,6 +64,9 @@ pub struct Player {
 pub struct Boat;
 
 #[derive(Component, Debug, Clone, PartialEq)]
+pub struct Fish;
+
+#[derive(Component, Debug, Clone, PartialEq)]
 pub struct Land {
     pub size: Vec2,
 }
@@ -116,6 +119,9 @@ pub struct PlayerMenu;
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct OnControl;
+
+#[derive(Component, Debug, Clone, PartialEq)]
+pub struct OnAI;
 
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub enum PlayerState {
