@@ -1,28 +1,24 @@
 # Bevy Game Project
 
-A modular 2D game prototype built with the Bevy game engine, demonstrating clean architecture and separation of concerns following Rust best practices.
+A 2D fishing game prototype built with the Bevy engine.
+
+The project is mostly an experiment and an attempt to develop a clean multi-layer 2D game architecture on top of ECS, with a clear separation of concerns and the objective of enabling fast scaling with new levels/assets and rapid iteration on new features and mechanics.
+
+![Game](screenshot.png)
 
 ## Architecture
 
-The project follows a modular architecture with clear separation of concerns:
+The project follows a modular architecture with the core modules including:
 
-```
-src/
-├── main.rs          # Entry point and game setup
-├── constants.rs     # Game constants
-├── items.rs         # Item system
-├── layer.rs         # Object spawning system
-├── components.rs    # ECS Components
-├── events.rs        # Game events
-├── states.rs        # Game states
-└── systems.rs       # Game systems
-```
+- ECS components
+- ECS events
+- ECS states
+- Layer builder
 
 ## Getting Started
 
 ### Prerequisites
-- Rust (latest stable version)
-- Cargo package manager
+- Rust (rustc 1.88.0)
 
 ### Running the Game
 ```bash
@@ -43,10 +39,6 @@ cargo run --release
 - **W**, **S**: Hook/Attack when in Action mode
 - **Tab**: Inventory
 - **Esc**: Exit menu/game
-
-## License
-
-This project is a prototype/educational example. Feel free to use it as a starting point for your own Bevy projects.
 
 ## Credits
 - Free Fishing Game Assets Pixel Art Pack by https://craftpix.net, license: https://craftpix.net/file-licenses/
