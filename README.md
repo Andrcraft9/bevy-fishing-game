@@ -2,6 +2,8 @@
 
 A 2D fishing game prototype built with the Bevy engine.
 
+_Catch fish, make money, protect the fish population_
+
 The project is mostly an experiment and an attempt to develop a clean multi-layer 2D game architecture on top of ECS, with a clear separation of concerns and the objective of enabling fast scaling with new levels/assets and rapid iteration on new features and mechanics.
 
 ![Game](screenshot.png)
@@ -10,6 +12,7 @@ The project is mostly an experiment and an attempt to develop a clean multi-laye
 
 The project follows a modular architecture with the core modules including:
 
+- ECS resources
 - ECS components
 - ECS events
 - ECS states
@@ -33,10 +36,9 @@ cargo run --release
 ```
 
 ### Controls
-- **A**: Move left
-- **D**: Move right
+- **A**, **D**: Move left/right
 - **Space**: Action mode
-- **W**, **S**: Hook/Attack when in Action mode
+- **W**, **S**: Hook/Action when in Action mode
 - **Tab**: Inventory
 - **Esc**: Exit menu/game
 
