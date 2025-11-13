@@ -44,8 +44,7 @@ pub fn on_hook(_action: On<Hook>, player: Single<&mut PlayerState, With<Player>>
 pub fn on_sell(_action: On<Sell>, player: Single<&mut Player>) {
     info!("On Sell!");
     let mut player = player.into_inner();
-    let item = player.items.pop();
-    if let Some(item) = item {
+    while let Some(item) = player.items.pop() {
         info!("Sold item: {}", item.name());
         player.money += item.value();
     }
@@ -84,7 +83,6 @@ pub fn on_catch(
         if distance <= action_range.range {
             info!("Catch fish: {}", fish.t.name());
             if player.items.len() < K_INVENTORY_SIZE {
-                info!("Grab it");
                 commands.entity(entity).despawn();
                 player.items.push(items::Item::Fish(items::Fish {
                     t: fish.t.clone(),
@@ -93,10 +91,8 @@ pub fn on_catch(
             } else {
                 info!("Inventory is full");
             }
-            return;
         }
     }
-    info!("Catch nothing");
 }
 
 pub fn on_action(_action: On<Action>, player: Single<(&mut PlayerState, &GlobalTransform)>) {
