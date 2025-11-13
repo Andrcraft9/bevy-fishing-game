@@ -38,22 +38,25 @@ impl Weight for Item {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FishType {
-    Silver,
-    Golden,
+    Fish,
+    Ray,
+    Shark,
 }
 
 impl Value for FishType {
     fn name(&self) -> String {
         match self {
-            FishType::Silver => String::from("Silver"),
-            FishType::Golden => String::from("Golden"),
+            FishType::Fish => String::from("Fish"),
+            FishType::Ray => String::from("Ray"),
+            FishType::Shark => String::from("Shark"),
         }
     }
 
     fn value(&self) -> f32 {
         match self {
-            FishType::Silver => 1.0,
-            FishType::Golden => 100.0,
+            FishType::Fish => 1.0,
+            FishType::Ray => 2.0,
+            FishType::Shark => 4.0,
         }
     }
 }
@@ -66,16 +69,10 @@ pub struct Fish {
 
 impl Value for Fish {
     fn name(&self) -> String {
-        match self.t {
-            FishType::Silver => format!("Fish - {}", self.t.name()),
-            FishType::Golden => format!("Fish - {}", self.t.name()),
-        }
+        format!("Fish - {}", self.t.name())
     }
 
     fn value(&self) -> f32 {
-        match self.t {
-            FishType::Silver => self.weight * self.t.value(),
-            FishType::Golden => self.weight * self.t.value(),
-        }
+        self.weight * self.t.value()
     }
 }

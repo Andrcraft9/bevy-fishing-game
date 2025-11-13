@@ -1,4 +1,4 @@
-use crate::items;
+use crate::items::{self, FishType};
 use bevy::prelude::*;
 
 /// Component Types
@@ -64,7 +64,9 @@ pub struct Player {
 pub struct Boat;
 
 #[derive(Component, Debug, Clone, PartialEq)]
-pub struct Fish;
+pub struct Fish {
+    pub t: FishType,
+}
 
 #[derive(Component, Debug, Clone, PartialEq)]
 pub struct Land {

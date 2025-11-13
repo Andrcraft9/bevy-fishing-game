@@ -7,6 +7,7 @@ mod constants;
 mod events;
 mod items;
 mod layer;
+mod resources;
 mod states;
 mod systems;
 
@@ -14,7 +15,9 @@ use constants::*;
 use layer::*;
 use states::*;
 
-use crate::components::{OnControl, Velocity};
+use crate::components::{Cloud, Fish, OnControl, Velocity};
+use crate::items::Value;
+use crate::resources::AITimer;
 
 fn main() {
     App::new()
@@ -27,6 +30,9 @@ fn main() {
             ..Default::default()
         }))
         .insert_resource(Time::<Virtual>::from_max_delta(Duration::from_secs(1)))
+        .insert_resource(AITimer {
+            timer: Timer::from_seconds(1.0, TimerMode::Repeating),
+        })
         .init_state::<GameState>()
         // Observers.
         .add_observer(systems::on_action)
@@ -40,10 +46,13 @@ fn main() {
         .add_systems(
             Update,
             (
+                systems::ai_timer,
+                systems::fish_spawn,
                 systems::added_animation,
                 systems::action_input,
                 systems::ai_input,
                 systems::player_state_walk_or_row,
+                systems::move_control,
                 systems::move_layer,
                 systems::move_sun,
                 systems::move_cloud,
@@ -64,6 +73,8 @@ fn main() {
         .add_systems(
             Update,
             (
+                systems::ai_timer,
+                systems::fish_spawn,
                 systems::added_animation,
                 systems::game_input,
                 systems::ai_input,
@@ -119,12 +130,15 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 }),
-                component: ObjectComponentType::Fish,
-                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 16.0),
+                component: ObjectComponentType::Fish(Fish {
+                    t: items::FishType::Fish,
+                }),
+                position: Vec2::new(K_FISH_AREA_BORDER + 128.0, K_GROUND_LEVEL - 16.0),
                 size: Vec2::new(48.0, 16.0),
                 color: Color::srgb(1.0, 1.0, 1.0),
-                name: "Fish".to_string(),
+                name: items::FishType::Fish.name(),
             },
             LayerObjectDesc {
                 t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
@@ -137,12 +151,15 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 }),
-                component: ObjectComponentType::Fish,
-                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 64.0),
+                component: ObjectComponentType::Fish(Fish {
+                    t: items::FishType::Ray,
+                }),
+                position: Vec2::new(K_FISH_AREA_BORDER + 128.0, K_GROUND_LEVEL - 64.0),
                 size: Vec2::new(64.0, 18.0),
                 color: Color::srgb(1.0, 1.0, 1.0),
-                name: "Ray".to_string(),
+                name: items::FishType::Ray.name(),
             },
             LayerObjectDesc {
                 t: ObjectType::SpriteAtlas(SpriteAtlasDesc {
@@ -155,12 +172,15 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 }),
-                component: ObjectComponentType::Fish,
-                position: Vec2::new(K_OCEAN_LAND_BORDER + 256.0, K_GROUND_LEVEL - 128.0),
+                component: ObjectComponentType::Fish(Fish {
+                    t: items::FishType::Shark,
+                }),
+                position: Vec2::new(K_FISH_AREA_BORDER + 128.0, K_GROUND_LEVEL - 128.0),
                 size: Vec2::new(128.0, 48.0),
                 color: Color::srgb(1.0, 1.0, 1.0),
-                name: "Shark".to_string(),
+                name: items::FishType::Shark.name(),
             },
         ],
         t: LayerType::City,
@@ -290,7 +310,7 @@ fn setup(
                         stretch_value: 3.33,
                     },
                 }),
-                component: ObjectComponentType::Cloud(components::Cloud { speed: 0.5 }),
+                component: ObjectComponentType::Cloud(Cloud { speed: 0.5 }),
                 position: Vec2::new(0.0, 0.0),
                 size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
                 color: Color::srgb(1.0, 1.0, 1.0),
@@ -305,7 +325,7 @@ fn setup(
                         stretch_value: 3.33,
                     },
                 }),
-                component: ObjectComponentType::Cloud(components::Cloud { speed: 0.75 }),
+                component: ObjectComponentType::Cloud(Cloud { speed: 0.75 }),
                 position: Vec2::new(0.0, 0.0),
                 size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
                 color: Color::srgb(1.0, 1.0, 1.0),
@@ -320,7 +340,7 @@ fn setup(
                         stretch_value: 3.33,
                     },
                 }),
-                component: ObjectComponentType::Cloud(components::Cloud { speed: 1.0 }),
+                component: ObjectComponentType::Cloud(Cloud { speed: 1.0 }),
                 position: Vec2::new(0.0, 0.0),
                 size: Vec2::new(4.0 * K_WIDTH, K_HEIGHT),
                 color: Color::srgb(1.0, 1.0, 1.0),
@@ -370,6 +390,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -381,6 +402,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -392,6 +414,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -403,6 +426,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Repeating,
+                    ms: K_ANIMATION_FRAME_MS,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -414,6 +438,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Once,
+                    ms: K_ANIMATION_FRAME_MS / 2,
                 },
                 SpriteAtlasDesc {
                     sprite: SpriteDesc {
@@ -425,6 +450,7 @@ fn setup(
                     rows: 1,
                     index: 0,
                     mode: TimerMode::Once,
+                    ms: K_ANIMATION_FRAME_MS / 2,
                 },
             ]),
             component: ObjectComponentType::Player,

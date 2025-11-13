@@ -3,20 +3,29 @@ use std::time::Duration;
 use crate::{
     components::{
         ActionRange, ActiveSprite, AnimationConfig, AnimationState, AnimationTimer, Boat, Building,
-        Cloud, DayNightColor, DefaultColor, Direction, Fish, Land, Layer, Ocean, OnAI, OnControl,
-        Player, PlayerMenu, PlayerState, SpriteCollection, Sun, Velocity,
+        Cloud, DayNightColor, DefaultColor, Direction, Fish, Layer, OnAI, OnControl, Player,
+        PlayerMenu, PlayerState, SpriteCollection, Sun, Velocity,
     },
     constants::{
-        K_GROUND_LEVEL, K_HEIGHT, K_OCEAN_LAND_BORDER, K_OCEAN_SIZE, K_SECS_IN_DAY, K_SIT_OFFSET,
-        K_SPEED, K_WIDTH,
+        K_FISH_AREA_BORDER, K_FISH_AREA_SIZE, K_FISH_MAX_POPULATION, K_GROUND_LEVEL, K_HEIGHT,
+        K_INVENTORY_SIZE, K_OCEAN_LAND_BORDER, K_SECS_IN_DAY, K_SIT_OFFSET, K_SPEED, K_WIDTH,
     },
     events::{Action, Catch, EndAction, Hit, Hook, Sell},
     items::{self, Value, Weight},
+    resources::AITimer,
     states::GameState,
 };
 use bevy::app::AppExit;
 use bevy::prelude::*;
 use rand::Rng;
+
+///
+/// Resources
+///
+
+pub fn ai_timer(time: Res<Time<Virtual>>, mut ai: ResMut<AITimer>) {
+    ai.timer.tick(time.delta());
+}
 
 ///
 /// Observers
@@ -53,59 +62,51 @@ pub fn on_hit(
     for (transform, name, action_range) in buildings.iter() {
         let distance = (position.x - transform.translation().x).abs();
         if distance <= action_range.range {
-            info!(
-                "Found building '{}' at distance {:.2} from action",
-                name, distance
-            );
+            info!("Found building: {}", name);
             commands.trigger(Sell);
+            return;
         }
     }
+    info!("Found nothing");
 }
 
-pub fn on_catch(_action: On<Catch>, mut player: Single<&mut Player>) {
-    info!("On Catch!");
-    let mut rng = rand::thread_rng();
-    let chance: f32 = rng.gen_range(0.0..1.0);
-    if chance < 0.1 {
-        let weight = rng.gen_range(0.1..20.0);
-        player.items.push(items::Item::Fish(items::Fish {
-            t: items::FishType::Golden,
-            weight,
-        }));
-        info!("Caught a Golden fish! Weight: {:.2}", weight);
-    } else if chance < 0.5 {
-        let weight = rng.gen_range(0.1..20.0);
-        player.items.push(items::Item::Fish(items::Fish {
-            t: items::FishType::Silver,
-            weight,
-        }));
-        info!("Caught a Silver fish! Weight: {:.2}", weight);
-    } else {
-        info!("Nothing caught this time...");
-    }
-}
-
-pub fn on_action(
-    _action: On<Action>,
-    player: Single<(&mut PlayerState, &GlobalTransform)>,
-    oceans: Query<(&GlobalTransform, &Name, &ActionRange), With<Ocean>>,
+pub fn on_catch(
+    _action: On<Catch>,
+    player: Single<(&mut Player, &GlobalTransform)>,
+    fishes: Query<(Entity, &GlobalTransform, &ActionRange, &Fish), With<Fish>>,
+    mut commands: Commands,
 ) {
+    info!("On Catch!");
+    let (mut player, player_transform) = player.into_inner();
+    let position = player_transform.translation();
+    for (entity, transform, action_range, fish) in fishes.iter() {
+        let distance = (position.x - transform.translation().x).abs();
+        if distance <= action_range.range {
+            info!("Catch fish: {}", fish.t.name());
+            if player.items.len() < K_INVENTORY_SIZE {
+                info!("Grab it");
+                commands.entity(entity).despawn();
+                player.items.push(items::Item::Fish(items::Fish {
+                    t: fish.t.clone(),
+                    weight: 1.0,
+                }));
+            } else {
+                info!("Inventory is full");
+            }
+            return;
+        }
+    }
+    info!("Catch nothing");
+}
+
+pub fn on_action(_action: On<Action>, player: Single<(&mut PlayerState, &GlobalTransform)>) {
     info!("On Action!");
     let (mut state, player_transform) = player.into_inner();
     let position = player_transform.translation();
 
     *state = PlayerState::Idle;
-
-    for (transform, name, action_range) in oceans.iter() {
-        let distance = (position.x - transform.translation().x).abs();
-        if distance <= action_range.range {
-            info!(
-                "Found ocean '{}' at distance {:.2} from action",
-                name, distance
-            );
-            *state = PlayerState::Fish;
-            return;
-        }
+    if position.x > K_OCEAN_LAND_BORDER {
+        *state = PlayerState::Fish;
     }
 }
 
@@ -202,31 +203,37 @@ pub fn action_input(
 }
 
 pub fn ai_input(
-    time: Res<Time<Virtual>>,
-    query: Query<(&mut Velocity, Option<&mut Direction>), With<OnAI>>,
+    ai: Res<AITimer>,
+    query: Query<(&mut Velocity, Option<&mut Direction>, &Transform), With<OnAI>>,
 ) {
-    let day_time = (24.0 * time.elapsed_secs() / K_SECS_IN_DAY) % 24.0;
-    if day_time as u32 % 2 == 0 {
-        info!("AI control: time={}", day_time);
-        for (mut velocity, direction) in query {
+    for (mut velocity, direction, transform) in query {
+        let mut vel = velocity.value;
+
+        if ai.timer.just_finished() {
             let mut rng = rand::thread_rng();
             let chance: f32 = rng.gen_range(0.0..1.0);
-
-            let mut vel = velocity.value;
-            if chance < 0.05 {
-                vel = -1.0;
-            }
-            if chance > 0.95 {
-                vel = 1.0
+            if chance < 0.5 {
+                vel = 1.0;
+            } else {
+                vel = -1.0
             };
-            velocity.value = vel;
-            if let Some(mut direction) = direction {
-                *direction = if vel > 0.0 {
-                    Direction::Left
-                } else {
-                    Direction::Right
-                };
-            }
+        }
+
+        if transform.translation.x <= K_FISH_AREA_BORDER {
+            vel = -1.0;
+        }
+
+        if transform.translation.x >= K_FISH_AREA_BORDER + K_FISH_AREA_SIZE {
+            vel = 1.0;
+        }
+
+        velocity.value = vel;
+        if let Some(mut direction) = direction {
+            *direction = if vel > 0.0 {
+                Direction::Left
+            } else {
+                Direction::Right
+            };
         }
     }
 }
@@ -431,9 +438,9 @@ pub fn move_control(
     for (mut transform, velocity, camera) in query {
         transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value;
         if let Some(_) = camera {
-            let sig = (transform.translation.x - (K_OCEAN_LAND_BORDER + K_WIDTH / 2.0)).signum();
+            let sig = (transform.translation.x - (K_FISH_AREA_BORDER)).signum();
             transform.translation.y -= sig * K_SPEED * time.delta_secs();
-            transform.translation.y = transform.translation.y.clamp(-K_HEIGHT / 2.0, 0.0);
+            transform.translation.y = transform.translation.y.clamp(-K_HEIGHT * 0.2, 0.0);
         }
     }
 }
@@ -454,10 +461,10 @@ pub fn move_ai(
 ) {
     for (mut transform, velocity, _) in query {
         transform.translation.x -= K_SPEED * time.delta_secs() * velocity.value;
-        transform.translation.x = transform.translation.x.clamp(
-            K_OCEAN_LAND_BORDER + 64.0,
-            K_OCEAN_LAND_BORDER + K_OCEAN_SIZE / 2.0,
-        );
+        transform.translation.x = transform
+            .translation
+            .x
+            .clamp(K_FISH_AREA_BORDER, K_FISH_AREA_BORDER + K_FISH_AREA_SIZE);
     }
 }
 
@@ -513,32 +520,22 @@ pub fn move_cloud(time: Res<Time<Virtual>>, query: Query<(&mut Transform, &Cloud
 
 pub fn player_state_walk_or_row(
     player: Single<(&mut PlayerState, &GlobalTransform), With<Player>>,
-    oceans: Query<(&Ocean, &GlobalTransform)>,
-    lands: Query<(&Land, &GlobalTransform)>,
 ) {
     let (mut state, transform) = player.into_inner();
 
     if *state == PlayerState::Row {
-        for (land, land_transform) in lands.iter() {
-            if transform.translation().x > land_transform.translation().x - land.size.x / 2.0
-                && transform.translation().x < land_transform.translation().x + land.size.x / 2.0
-            {
-                info!("Hit land!");
-                *state = PlayerState::Walk;
-            }
-            return;
+        if transform.translation().x < K_OCEAN_LAND_BORDER {
+            info!("Hit land!");
+            *state = PlayerState::Walk;
         }
+        return;
     }
 
     if *state == PlayerState::Walk {
-        for (ocean, ocean_transform) in oceans.iter() {
-            if transform.translation().x > ocean_transform.translation().x - ocean.size.x / 2.0
-                && transform.translation().x < ocean_transform.translation().x + ocean.size.x / 2.0
-            {
-                info!("Hit ocean!");
-                *state = PlayerState::Row;
-                return;
-            }
+        if transform.translation().x > K_OCEAN_LAND_BORDER {
+            info!("Hit ocean!");
+            *state = PlayerState::Row;
+            return;
         }
     }
 }
@@ -555,6 +552,40 @@ pub fn color_day_night(
 
     for (mut sprite, color) in query {
         sprite.color = color.color.darker(0.8 * (1.0 - day));
+    }
+}
+
+///
+/// Spawn systems
+///
+
+pub fn fish_spawn(
+    ai: Res<AITimer>,
+    query: Query<(Entity, &Velocity, &Direction), With<Fish>>,
+    mut commands: Commands,
+) {
+    if ai.timer.just_finished() {
+        let population = query.iter().len();
+        if population < K_FISH_MAX_POPULATION {
+            for (entity, velocity, direction) in query {
+                let mut rng = rand::thread_rng();
+                let chance: f32 = rng.gen_range(0.0..1.0);
+                if chance < 0.1 {
+                    let oppose_direction = if *direction == Direction::Left {
+                        Direction::Right
+                    } else {
+                        Direction::Left
+                    };
+                    commands
+                        .entity(entity)
+                        .clone_and_spawn()
+                        .insert(Velocity {
+                            value: -velocity.value,
+                        })
+                        .insert(oppose_direction);
+                }
+            }
+        }
     }
 }
 

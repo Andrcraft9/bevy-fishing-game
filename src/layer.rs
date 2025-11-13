@@ -4,7 +4,7 @@ use crate::{
         DayNightColor, DefaultColor, Direction, Fish, Land, Layer, Ocean, OnAI, OnControl, Player,
         PlayerState, Sky, SpriteCollection, Sun, Velocity,
     },
-    constants::K_ANIMATION_FRAME_MS,
+    constants::K_FISH_CATCH_RANGE,
 };
 use bevy::prelude::*;
 
@@ -30,6 +30,7 @@ pub struct SpriteAtlasDesc {
     pub cols: u32,
     pub index: usize,
     pub mode: TimerMode,
+    pub ms: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -50,7 +51,7 @@ pub enum ObjectComponentType {
     Sun,
     Cloud(Cloud),
     Sky,
-    Fish,
+    Fish(Fish),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -107,7 +108,7 @@ impl LayerDesc {
         let animation_config = AnimationConfig {
             first_index: atlas.index,
             last_index: std::cmp::max(atlas.cols - 1, atlas.rows - 1) as usize,
-            ms: K_ANIMATION_FRAME_MS,
+            ms: atlas.ms,
             mode: atlas.mode,
         };
 
@@ -298,12 +299,15 @@ impl LayerDesc {
                 ObjectComponentType::Sky => {
                     commands.entity(entity_id).insert(Sky).insert(DayNightColor);
                 }
-                ObjectComponentType::Fish => {
+                ObjectComponentType::Fish(fish) => {
                     commands
                         .entity(entity_id)
-                        .insert(Fish)
+                        .insert(fish.clone())
                         .insert(Direction::Right)
                         .insert(Velocity { value: 1.0 })
+                        .insert(ActionRange {
+                            range: K_FISH_CATCH_RANGE,
+                        })
                         .insert(OnAI);
                 }
             }
